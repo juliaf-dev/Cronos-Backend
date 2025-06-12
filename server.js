@@ -14,7 +14,7 @@ const PORT = process.env.PORT || 5000;
 // Configuração do CORS
 const allowedOrigins = [
   'http://localhost:3000',
-  'https://cronos-frontend-jgrz.vercel.app/'
+  'https://cronos-frontend-jgrz.vercel.app'
 ];
 app.use(cors({
   origin: function (origin, callback) {
