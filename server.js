@@ -17,8 +17,11 @@ const allowedOrigins = [
   'https://cronos-frontend-jgrz.vercel.app'
 ];
 app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
+  origin: function(origin, callback) {
+    // Se não tiver origin (ex: Postman), deixa passar
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
