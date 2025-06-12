@@ -11,23 +11,10 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Configuração do CORS
-const allowedOrigins = [
-  'http://localhost:3000',
-  'https://cronos-frontend-jgrz.vercel.app'
-];
+
 app.use(cors({
- origin: function (origin, callback) {
-  if (!origin) return callback(null, true); // permite requests sem origin (ex: curl, postman)
-  if (allowedOrigins.includes(origin)) {
-    callback(null, true);
-  } else {
-    callback(new Error('Not allowed by CORS'));
-  }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  origin: 'https://cronos-frontend-jgrz.vercel.app', // troque pelo seu real domínio do Vercel
+  credentials: true
 }));
 
 
@@ -65,14 +52,11 @@ app.get('/health', (req, res) => {
 // Swagger UI
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
 
+// Error Handling
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  if (err.message === 'Not allowed by CORS') {
-    return res.status(403).json({ error: 'CORS Error: Origin not allowed' });
-  }
   res.status(500).json({ error: 'Something went wrong!' });
 });
-
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
