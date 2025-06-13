@@ -6,24 +6,40 @@ import swaggerUi from 'swagger-ui-express';
 
 import { specs } from './src/config/swagger.js';
 import authRoutes from './src/routes/authRoutes.js';
-import contentRoutes from './src/routes/content.js'; // rotas da IA
+import contentRoutes from './src/routes/content.js';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// CORS
+// CORS com múltiplas origens
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://cronos-frontend-jgrz.vercel.app'
+];
+
 app.use(cors({
-  origin: 'https://cronos-frontend-jgrz.vercel.app',
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true
 }));
 
-// JSON e URL-encoded
+// Express middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Sessões
+// Confiança no proxy do Render/Vercel
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
+// Sessão
 app.use(session({
   secret: process.env.SESSION_SECRET || 'secret123',
   resave: false,
@@ -32,17 +48,13 @@ app.use(session({
     secure: true,
     sameSite: 'none',
     httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000 // 1 dia
+    maxAge: 24 * 60 * 60 * 1000
   }
 }));
 
-if (process.env.NODE_ENV === 'production') {
-  app.set('trust proxy', 1);
-}
-
 // Rotas
 app.use('/api/auth', authRoutes);
-app.use('/api/contents', contentRoutes); // aqui está o POST /generate
+app.use('/api/contents', contentRoutes);
 
 // Swagger
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
@@ -52,7 +64,7 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'healthy' });
 });
 
-// Tratamento de erros
+// Erros
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ error: 'Erro interno do servidor' });
