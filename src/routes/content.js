@@ -5,39 +5,42 @@ import pool from '../config/db.js';
 const router = express.Router();
 
 router.post('/generate', async (req, res) => {
-  const { materia, topico, usuarioId } = req.body;
+  const { materia, topico } = req.body;
 
-  if (!materia || !topico || !usuarioId) {
+  console.log('[POST /generate] Recebido:', { materia, topico });
+
+  if (!materia || !topico) {
+    console.log('[POST /generate] Dados obrigatórios faltando');
     return res.status(400).json({ error: 'Faltam dados obrigatórios' });
   }
 
   try {
-    // 1. Verificar se já existe conteúdo para esse usuário, matéria e tópico
+    console.log(`[POST /generate] Verificando se conteúdo já existe para: ${materia} - ${topico}`);
     const [rows] = await pool.execute(
-      'SELECT id, body FROM contents WHERE title = ? AND created_by = ?',
-      [`${materia} - ${topico}`, usuarioId]
+      'SELECT id, body FROM contents WHERE title = ?',
+      [`${materia} - ${topico}`]
     );
 
     if (rows.length > 0) {
-      // Conteúdo já existe, retorna ele
+      console.log(`[POST /generate] Conteúdo encontrado no banco, id: ${rows[0].id}`);
       return res.status(200).json({
         id: rows[0].id,
         title: `${materia} - ${topico}`,
         body: rows[0].body,
-        fromCache: true, // só para indicar que veio do banco
+        fromCache: true,
       });
     }
 
-    // 2. Se não existir, gerar novo conteúdo
+    console.log(`[POST /generate] Conteúdo não encontrado, gerando...`);
     const conteudoGerado = await gerarConteudoMateria(materia, topico);
+    console.log('[POST /generate] Conteúdo gerado com sucesso');
 
-    // 3. Salvar no banco
     const [result] = await pool.execute(
-      'INSERT INTO contents (title, body, created_by) VALUES (?, ?, ?)',
-      [`${materia} - ${topico}`, conteudoGerado, usuarioId]
+      'INSERT INTO contents (title, body) VALUES (?, ?)',
+      [`${materia} - ${topico}`, conteudoGerado]
     );
+    console.log(`[POST /generate] Conteúdo salvo no banco, novo id: ${result.insertId}`);
 
-    // 4. Retornar novo conteúdo criado
     res.status(201).json({
       id: result.insertId,
       title: `${materia} - ${topico}`,
@@ -45,7 +48,7 @@ router.post('/generate', async (req, res) => {
       fromCache: false,
     });
   } catch (error) {
-    console.error('Erro ao gerar conteúdo:', error);
+    console.error('[POST /generate] Erro ao gerar ou salvar o conteúdo:', error);
     res.status(500).json({ error: 'Erro ao gerar o conteúdo' });
   }
 });
