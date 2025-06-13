@@ -7,6 +7,7 @@ if (!API_KEY) {
   throw new Error("A chave da API Gemini não está definida. Verifique o arquivo .env.");
 }
 
+
 export const gerarConteudoMateria = async (materia, topico) => {
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });

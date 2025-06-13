@@ -12,6 +12,7 @@ router.post('/generate', async (req, res) => {
     return res.status(400).json({ error: 'Faltam dados obrigatórios' });
   }
 
+  
   try {
     const conteudoGerado = await gerarConteudoMateria(materia, topico);
 
