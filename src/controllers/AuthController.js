@@ -2,6 +2,7 @@ import User from '../models/User.js';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
+import fetch from 'node-fetch';
 
 dotenv.config();
 
@@ -10,6 +11,24 @@ class AuthController {
     try {
       const { username, email, password } = req.body;
       
+      // Validação de formato de e-mail
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ error: 'Formato de e-mail inválido.' });
+      }
+
+      // Validação de existência do e-mail usando mailboxlayer (exemplo)
+      // Substitua 'YOUR_API_KEY' pela sua chave real do serviço
+      const apiKey = process.env.MAILBOXLAYER_API_KEY;
+      if (apiKey) {
+        const verifyUrl = `http://apilayer.net/api/check?access_key=${apiKey}&email=${encodeURIComponent(email)}&smtp=1&format=1`;
+        const verifyRes = await fetch(verifyUrl);
+        const verifyData = await verifyRes.json();
+        if (!verifyData.smtp_check) {
+          return res.status(400).json({ error: 'E-mail não existe ou não pode ser verificado.' });
+        }
+      }
+
       // Verificar se o email já existe
       const existingUser = await User.findByEmail(email);
       if (existingUser) {
