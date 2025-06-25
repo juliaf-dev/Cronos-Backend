@@ -1,4 +1,6 @@
 import User from '../models/User.js';
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -17,14 +19,18 @@ class AuthController {
       // Criar usuário
       const userId = await User.create({ username, email, password });
       
-      // Armazenar dados do usuário na sessão
-      req.session.user = {
-        id: userId,
-        username,
-        email
-      };
+      // Gerar token JWT
+      const token = jwt.sign(
+        { id: userId, email, isAdmin: false },
+        process.env.JWT_SECRET,
+        { expiresIn: '24h' }
+      );
       
-      res.json({ message: 'Registro bem-sucedido', user: req.session.user });
+      res.status(201).json({ 
+        message: 'Registro bem-sucedido',
+        token,
+        user: { id: userId, username, email, isAdmin: false }
+      });
     } catch (error) {
       console.error(error);
       res.status(500).json({ error: 'Erro ao registrar usuário' });
@@ -41,19 +47,29 @@ class AuthController {
         return res.status(401).json({ error: 'Credenciais inválidas' });
       }
       
-      // Verificar senha (em produção, use bcrypt para comparar hashes)
-      if (user.password !== password) {
+      // Verificar senha
+      const validPassword = await bcrypt.compare(password, user.password);
+      if (!validPassword) {
         return res.status(401).json({ error: 'Credenciais inválidas' });
       }
       
-      // Armazenar dados do usuário na sessão
-      req.session.user = {
-        id: user.id,
-        username: user.username,
-        email: user.email
-      };
+      // Gerar token JWT
+      const token = jwt.sign(
+        { id: user.id, email: user.email, isAdmin: user.is_admin },
+        process.env.JWT_SECRET,
+        { expiresIn: '24h' }
+      );
       
-      res.json({ message: 'Login bem-sucedido', user: req.session.user });
+      res.json({ 
+        message: 'Login bem-sucedido',
+        token,
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          isAdmin: user.is_admin
+        }
+      });
     } catch (error) {
       console.error(error);
       res.status(500).json({ error: 'Erro ao fazer login' });
@@ -71,10 +87,32 @@ class AuthController {
   }
 
   static async checkAuth(req, res) {
-    if (req.session.user) {
-      return res.json({ isAuthenticated: true, user: req.session.user });
+    try {
+      const token = req.headers.authorization?.split(' ')[1];
+      
+      if (!token) {
+        return res.json({ isAuthenticated: false });
+      }
+
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const user = await User.findById(decoded.id);
+
+      if (!user) {
+        return res.json({ isAuthenticated: false });
+      }
+
+      res.json({ 
+        isAuthenticated: true,
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          isAdmin: user.is_admin
+        }
+      });
+    } catch (error) {
+      res.json({ isAuthenticated: false });
     }
-    res.json({ isAuthenticated: false });
   }
 }
 

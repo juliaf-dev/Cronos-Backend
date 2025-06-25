@@ -1,0 +1,19 @@
+# Configurações do Servidor
+PORT=5000
+NODE_ENV=development
+
+# Configurações do Banco de Dados MySQL
+DB_HOST=localhost
+DB_USER=root
+DB_PASSWORD=sua_senha_aqui
+DB_NAME=cronos_db
+
+# Configurações de Segurança
+JWT_SECRET=sua_chave_jwt_super_secreta_aqui
+SESSION_SECRET=sua_chave_sessao_super_secreta_aqui
+
+# Configurações do Gemini AI
+REACT_APP_GEMINI_API_KEY=sua_chave_api_gemini_aqui
+
+# URLs do Frontend (para CORS)
+FRONTEND_URL=http://localhost:3000 
