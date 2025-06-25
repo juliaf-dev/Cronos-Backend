@@ -18,8 +18,8 @@ class User {
   static async create({ username, email, password }) {
     const hashedPassword = await bcrypt.hash(password, 10);
     const [result] = await pool.execute(
-      'INSERT INTO users (username, email, password, is_admin) VALUES (?, ?, ?, ?)',
-      [username, email, hashedPassword, false]
+      'INSERT INTO users (username, email, password, is_admin, is_confirmed) VALUES (?, ?, ?, ?, ?)',
+      [username, email, hashedPassword, false, false]
     );
     return result.insertId;
   }
@@ -34,7 +34,7 @@ class User {
 
   static async findById(id) {
     const [rows] = await pool.execute(
-      'SELECT id, username, email, is_admin FROM users WHERE id = ?',
+      'SELECT id, username, email, is_admin, is_confirmed FROM users WHERE id = ?',
       [id]
     );
     return rows[0];
@@ -44,6 +44,14 @@ class User {
     const [result] = await pool.execute(
       'UPDATE users SET username = ?, email = ?, is_admin = ? WHERE id = ?',
       [username, email, isAdmin, id]
+    );
+    return result.affectedRows;
+  }
+
+  static async confirmUserById(id) {
+    const [result] = await pool.execute(
+      'UPDATE users SET is_confirmed = ? WHERE id = ?',
+      [true, id]
     );
     return result.affectedRows;
   }

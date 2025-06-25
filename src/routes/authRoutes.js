@@ -121,4 +121,27 @@ router.get('/logout', AuthController.logout);
  */
 router.get('/check', AuthController.checkAuth);
 
+/**
+ * @swagger
+ * /api/auth/confirm:
+ *   get:
+ *     summary: Confirma o e-mail do usuário
+ *     tags: [Autenticação]
+ *     parameters:
+ *       - in: query
+ *         name: token
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Token de confirmação enviado por e-mail
+ *     responses:
+ *       200:
+ *         description: E-mail confirmado com sucesso
+ *       400:
+ *         description: Token inválido ou expirado
+ *       404:
+ *         description: Usuário não encontrado
+ */
+router.get('/confirm', AuthController.confirmEmail);
+
 export default router;

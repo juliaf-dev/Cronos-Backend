@@ -16,4 +16,8 @@ SESSION_SECRET=sua_chave_sessao_super_secreta_aqui
 REACT_APP_GEMINI_API_KEY=sua_chave_api_gemini_aqui
 
 # URLs do Frontend (para CORS)
-FRONTEND_URL=http://localhost:3000 
+FRONTEND_URL=http://localhost:3000
+
+# Configurações do Mailjet
+MAILJET_API_KEY=sua_api_key_mailjet_aqui
+MAILJET_API_SECRET=sua_api_secret_mailjet_aqui 

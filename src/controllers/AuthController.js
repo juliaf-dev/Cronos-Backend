@@ -3,8 +3,14 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
 import fetch from 'node-fetch';
+import mailjet from 'node-mailjet';
 
 dotenv.config();
+
+const mailjetClient = mailjet.apiConnect(
+  process.env.MAILJET_API_KEY,
+  process.env.MAILJET_API_SECRET
+);
 
 class AuthController {
   static async register(req, res) {
@@ -38,6 +44,39 @@ class AuthController {
       // Criar usuário
       const userId = await User.create({ username, email, password });
       
+      // Gerar token de confirmação
+      const confirmToken = jwt.sign(
+        { id: userId, email },
+        process.env.JWT_SECRET,
+        { expiresIn: '1d' }
+      );
+
+      // Enviar e-mail de confirmação
+      try {
+        await mailjetClient.post('send', { version: 'v3.1' }).request({
+          Messages: [
+            {
+              From: {
+                Email: 'no-reply@cronos.com',
+                Name: 'Cronos'
+              },
+              To: [
+                {
+                  Email: email,
+                  Name: username
+                }
+              ],
+              Subject: 'Confirme seu cadastro no Cronos',
+              TextPart: 'Clique no link para confirmar seu cadastro.',
+              HTMLPart:
+                `<h3>Bem-vindo ao Cronos!</h3><p>Para ativar sua conta, clique no link abaixo:</p><a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/confirmar?token=${confirmToken}">Confirmar cadastro</a>`
+            }
+          ]
+        });
+      } catch (emailErr) {
+        console.error('Erro ao enviar e-mail de confirmação:', emailErr);
+      }
+
       // Gerar token JWT
       const token = jwt.sign(
         { id: userId, email, isAdmin: false },
@@ -64,6 +103,11 @@ class AuthController {
       const user = await User.findByEmail(email);
       if (!user) {
         return res.status(401).json({ error: 'Credenciais inválidas' });
+      }
+      
+      // Bloquear login se não confirmou o e-mail
+      if (!user.is_confirmed) {
+        return res.status(401).json({ error: 'Confirme seu e-mail antes de fazer login.' });
       }
       
       // Verificar senha
@@ -131,6 +175,33 @@ class AuthController {
       });
     } catch (error) {
       res.json({ isAuthenticated: false });
+    }
+  }
+
+  static async confirmEmail(req, res) {
+    try {
+      const { token } = req.query;
+      if (!token) {
+        return res.status(400).json({ error: 'Token não fornecido.' });
+      }
+      let decoded;
+      try {
+        decoded = jwt.verify(token, process.env.JWT_SECRET);
+      } catch (err) {
+        return res.status(400).json({ error: 'Token inválido ou expirado.' });
+      }
+      const user = await User.findById(decoded.id);
+      if (!user) {
+        return res.status(404).json({ error: 'Usuário não encontrado.' });
+      }
+      if (user.is_confirmed) {
+        return res.status(200).json({ message: 'E-mail já confirmado.' });
+      }
+      await User.confirmUserById(user.id);
+      res.status(200).json({ message: 'E-mail confirmado com sucesso!' });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Erro ao confirmar e-mail.' });
     }
   }
 }
