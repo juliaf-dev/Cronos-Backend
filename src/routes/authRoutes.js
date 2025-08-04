@@ -1,5 +1,6 @@
 import express from 'express';
 import AuthController from '../controllers/AuthController.js';
+import { ensureAuthenticated } from '../midewares/auth.js';
 
 const router = express.Router();
 
@@ -87,8 +88,6 @@ router.post('/login', AuthController.login);
  *   get:
  *     summary: Realiza o logout do usuário
  *     tags: [Autenticação]
- *     security:
- *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: Logout realizado com sucesso
@@ -103,8 +102,6 @@ router.get('/logout', AuthController.logout);
  *   get:
  *     summary: Verifica se o usuário está autenticado
  *     tags: [Autenticação]
- *     security:
- *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: Usuário autenticado
@@ -119,7 +116,7 @@ router.get('/logout', AuthController.logout);
  *       401:
  *         description: Não autorizado
  */
-router.get('/check', AuthController.checkAuth);
+router.get('/check', ensureAuthenticated, AuthController.checkAuth);
 
 /**
  * @swagger

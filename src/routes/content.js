@@ -1,7 +1,7 @@
 import express from 'express';
 import { gerarConteudoMateria, gerarQuestoesQuiz } from '../services/geminiService.js';
 import pool from '../config/db.js';
-import { isAdmin, authenticateToken } from '../midewares/authMiddleware.js';
+import { ensureAuthenticated } from '../midewares/auth.js'; // Importa o novo middleware de sessão
 
 const router = express.Router();
 
@@ -87,7 +87,7 @@ router.post('/quiz/generate', async (req, res) => {
 });
 
 // Rotas para Resumos
-router.get('/resumos', authenticateToken, async (req, res) => {
+router.get('/resumos', ensureAuthenticated, async (req, res) => {
   try {
     const [rows] = await pool.execute(
       'SELECT * FROM resumos WHERE user_id = ? ORDER BY created_at DESC',
@@ -100,7 +100,7 @@ router.get('/resumos', authenticateToken, async (req, res) => {
   }
 });
 
-router.post('/resumos', authenticateToken, async (req, res) => {
+router.post('/resumos', ensureAuthenticated, async (req, res) => {
   const { titulo, conteudo, materia, periodo } = req.body;
 
   if (!titulo || !conteudo) {
@@ -127,7 +127,7 @@ router.post('/resumos', authenticateToken, async (req, res) => {
   }
 });
 
-router.put('/resumos/:id', authenticateToken, async (req, res) => {
+router.put('/resumos/:id', ensureAuthenticated, async (req, res) => {
   const { id } = req.params;
   const { titulo, conteudo, materia, periodo } = req.body;
 
@@ -152,7 +152,7 @@ router.put('/resumos/:id', authenticateToken, async (req, res) => {
   }
 });
 
-router.delete('/resumos/:id', authenticateToken, async (req, res) => {
+router.delete('/resumos/:id', ensureAuthenticated, async (req, res) => {
   const { id } = req.params;
 
   try {
@@ -173,7 +173,7 @@ router.delete('/resumos/:id', authenticateToken, async (req, res) => {
 });
 
 // Rotas para Flashcards
-router.get('/flashcards', authenticateToken, async (req, res) => {
+router.get('/flashcards', ensureAuthenticated, async (req, res) => {
   try {
     const [rows] = await pool.execute(
       'SELECT * FROM flashcards WHERE user_id = ? ORDER BY created_at DESC',
@@ -186,7 +186,7 @@ router.get('/flashcards', authenticateToken, async (req, res) => {
   }
 });
 
-router.post('/flashcards', authenticateToken, async (req, res) => {
+router.post('/flashcards', ensureAuthenticated, async (req, res) => {
   const { pergunta, resposta, materia, periodo } = req.body;
 
   if (!pergunta || !resposta) {
@@ -213,7 +213,7 @@ router.post('/flashcards', authenticateToken, async (req, res) => {
   }
 });
 
-router.put('/flashcards/:id', authenticateToken, async (req, res) => {
+router.put('/flashcards/:id', ensureAuthenticated, async (req, res) => {
   const { id } = req.params;
   const { pergunta, resposta, materia, periodo } = req.body;
 
@@ -238,7 +238,7 @@ router.put('/flashcards/:id', authenticateToken, async (req, res) => {
   }
 });
 
-router.delete('/flashcards/:id', authenticateToken, async (req, res) => {
+router.delete('/flashcards/:id', ensureAuthenticated, async (req, res) => {
   const { id } = req.params;
 
   try {
@@ -259,7 +259,7 @@ router.delete('/flashcards/:id', authenticateToken, async (req, res) => {
 });
 
 // Rota para marcar flashcard como revisado
-router.post('/flashcards/:id/review', authenticateToken, async (req, res) => {
+router.post('/flashcards/:id/review', ensureAuthenticated, async (req, res) => {
   const { id } = req.params;
 
   try {
@@ -280,7 +280,7 @@ router.post('/flashcards/:id/review', authenticateToken, async (req, res) => {
 });
 
 // Rota para editar conteúdo (apenas admin)
-router.put('/edit/:id', isAdmin, async (req, res) => {
+router.put('/edit/:id', ensureAuthenticated, async (req, res) => {
   const { id } = req.params;
   const { body } = req.body;
 

@@ -31,6 +31,15 @@ class User {
     );
     return rows[0];
   }
+  
+  static async checkAuth(req, res) {
+  if (req.session.user) {
+    res.status(200).json({ authenticated: true, user: req.session.user });
+  } else {
+    res.status(401).json({ authenticated: false });
+  }
+}
+
 
   static async findById(id) {
     const [rows] = await pool.execute(
