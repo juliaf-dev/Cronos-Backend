@@ -105,11 +105,7 @@ class AuthController {
         return res.status(401).json({ error: 'Credenciais inválidas' });
       }
       
-      // Bloquear login se não confirmou o e-mail
-      if (!user.is_confirmed) {
-        return res.status(401).json({ error: 'Confirme seu e-mail antes de fazer login.' });
-      }
-      
+    
       // Verificar senha
       const validPassword = await bcrypt.compare(password, user.password);
       if (!validPassword) {
