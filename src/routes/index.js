@@ -6,7 +6,6 @@ const router = express.Router();
 // Então não precisa repetir requireAuth aqui
 
 // Rotas protegidas
-router.use("/assistente", require("./assistente"));
 router.use("/topicos", require("./topicos"));
 router.use("/subtopicos", require("./subtopicos")); // 🔹 versão protegida (diferente da pública em server.js)
 router.use("/conteudos", require("./conteudos"));

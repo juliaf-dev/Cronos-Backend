@@ -4,7 +4,7 @@ const pool = require("../config/db");
 // Criar flashcard
 async function create(req, res) {
   try {
-    const { materia_id, pergunta, resposta } = req.body;
+    const { materia_id, pergunta, resposta, nivel_dificuldade } = req.body;
     const usuarioId = req.user?.id;
 
     if (!usuarioId) {
@@ -17,15 +17,15 @@ async function create(req, res) {
 
     const [result] = await pool.execute(
       `INSERT INTO flashcards 
-        (usuario_id, materia_id, pergunta, resposta, criado_em) 
-        VALUES (?, ?, ?, ?, NOW())`,
-      [usuarioId, materia_id, pergunta, resposta]
+        (usuario_id, materia_id, pergunta, resposta, nivel_dificuldade, status, criado_em) 
+        VALUES (?, ?, ?, ?, ?, 'a_revisar', NOW())`,
+      [usuarioId, materia_id, pergunta, resposta, nivel_dificuldade || "medio"]
     );
 
     res.json({
       ok: true,
       message: "Flashcard criado com sucesso!",
-      data: { id: result.insertId, materia_id, pergunta, resposta },
+      data: { id: result.insertId, materia_id, pergunta, resposta, nivel_dificuldade },
     });
   } catch (err) {
     console.error("❌ Erro ao criar flashcard:", err);
@@ -33,7 +33,46 @@ async function create(req, res) {
   }
 }
 
-// Listar todos os flashcards do usuário logado
+// Registrar revisão
+async function registrarRevisao(req, res) {
+  try {
+    const usuarioId = req.user?.id;
+    if (!usuarioId) return res.status(401).json({ ok: false, error: "Usuário não autenticado." });
+
+    const { id } = req.params;
+
+    const [rows] = await pool.execute(
+      "SELECT nivel_dificuldade FROM flashcards WHERE id = ? AND usuario_id = ?",
+      [id, usuarioId]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ ok: false, error: "Flashcard não encontrado." });
+    }
+
+    const nivel = rows[0].nivel_dificuldade;
+
+    let dias;
+    switch (nivel) {
+      case "facil": dias = 5; break;
+      case "medio": dias = 3; break;
+      case "dificil": dias = 1; break;
+      default: dias = 2;
+    }
+
+    await pool.execute(
+      "UPDATE flashcards SET status = 'revisado', revisar_em = DATE_ADD(CURDATE(), INTERVAL ? DAY) WHERE id = ? AND usuario_id = ?",
+      [dias, id, usuarioId]
+    );
+
+    res.json({ ok: true, message: "Revisão registrada com sucesso!" });
+  } catch (err) {
+    console.error("❌ Erro ao registrar revisão:", err);
+    res.status(500).json({ ok: false, error: "Erro interno no servidor." });
+  }
+}
+
+// Listar todos flashcards do usuário
 async function listByUsuario(req, res) {
   try {
     const usuarioId = req.user?.id;
@@ -51,7 +90,7 @@ async function listByUsuario(req, res) {
   }
 }
 
-// Listar flashcards por matéria do usuário logado
+// Listar flashcards por matéria
 async function listByMateria(req, res) {
   try {
     const usuarioId = req.user?.id;
@@ -124,7 +163,7 @@ async function remove(req, res) {
   }
 }
 
-// Registrar acerto/erro no flashcard
+// Registrar acerto/erro
 async function registrarResultado(req, res) {
   try {
     const usuarioId = req.user?.id;
@@ -133,7 +172,6 @@ async function registrarResultado(req, res) {
     const { id } = req.params;
     const { correta } = req.body;
 
-    // verifica se o flashcard pertence ao usuário
     const [check] = await pool.execute(
       "SELECT id FROM flashcards WHERE id = ? AND usuario_id = ?",
       [id, usuarioId]
@@ -158,9 +196,10 @@ async function registrarResultado(req, res) {
 
 module.exports = {
   create,
+  registrarRevisao,
   listByUsuario,
   listByMateria,
   update,
   remove,
-  registrarResultado,
+  registrarResultado
 };

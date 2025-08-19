@@ -1,3 +1,4 @@
+// src/server.js
 const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
@@ -12,17 +13,20 @@ const { requireAuth, requireAdmin, refreshFromCookie } = require("./middlewares/
 const authRoutes = require("./routes/auth");
 const materiasRoutes = require("./routes/materias");
 const subtopicosPublicRoutes = require("./routes/subtopicosPublic");
-const quizRoutes = require("./routes/quiz");        // 🔹 novo
-const evolucaoRoutes = require("./routes/evolucao"); // 🔹 novo
-const protectedRoutes = require("./routes/index");
+const quizRoutes = require("./routes/quiz");
+const evolucaoRoutes = require("./routes/evolucao");
 const resumosRoutes = require("./routes/resumos");
+const flashcardsRoutes = require("./routes/flashcards");
+const protectedRoutes = require("./routes/index");
+const assistenteRoutes = require("./routes/assistente");
+
 const app = express();
 
+// 🔹 Middlewares globais
 app.disable("x-powered-by");
 app.use(morgan("dev"));
 app.use(express.json({ limit: "2mb" }));
 app.use(cookieParser());
-
 app.use(
   cors({
     origin: CORS_ORIGIN,
@@ -43,27 +47,29 @@ app.use("/api/auth", authLimiter, authRoutes);
 // 🔹 Rotas públicas
 app.use("/api/materias", materiasRoutes);
 app.use("/api/subtopicos", subtopicosPublicRoutes);
+app.use("/api/assistente", assistenteRoutes); // ✅ agora público
 
-// 🔹 Rotas protegidas (só logado)
-app.use("/api/quiz", requireAuth, quizRoutes);         // 🔹 Quiz
-app.use("/api/evolucao", requireAuth, evolucaoRoutes); // 🔹 Evolução
+// 🔹 Rotas protegidas
+app.use("/api/quiz", requireAuth, quizRoutes);
+app.use("/api/evolucao", evolucaoRoutes);
 app.use("/api/resumos", requireAuth, resumosRoutes);
+app.use("/api/flashcards", requireAuth, flashcardsRoutes);
+app.use("/api", requireAuth, protectedRoutes); // genéricas
 
-app.use("/api", requireAuth, protectedRoutes);
-
-// 🔹 Rota admin (só logado + admin)
+// 🔹 Rota admin
 app.get("/api/admin/ping", requireAuth, requireAdmin, (req, res) =>
   res.json({ ok: true, role: "admin" })
 );
 
-// 🔹 404
+// 🔹 404 handler (deixa por último)
 app.use((req, res) =>
   res.status(404).json({ ok: false, message: "Rota não encontrada" })
 );
 
-// 🔹 Erros globais
+// 🔹 Error handler global
 app.use(errorHandler);
 
+// 🔹 Inicialização
 app.listen(PORT, () => {
   console.log(`🚀 Cronos API rodando em http://localhost:${PORT}`);
 });

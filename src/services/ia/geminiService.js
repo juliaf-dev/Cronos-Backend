@@ -45,6 +45,9 @@ async function geminiGenerate(model, contents) {
     throw new Error('Resposta inválida da Gemini API');
   }
 
+  // 🔹 Log da resposta bruta para debug
+  console.log("Gemini JSON bruto:", JSON.stringify(json, null, 2));
+
   const text =
     json?.candidates?.[0]?.content?.parts
       ?.map((p) => p.text)
@@ -53,7 +56,7 @@ async function geminiGenerate(model, contents) {
       .trim() || '';
 
   if (!text) {
-    console.warn('Gemini retornou vazio', JSON.stringify(json));
+    console.warn('⚠️ Gemini retornou vazio', JSON.stringify(json, null, 2));
   }
 
   return text;
@@ -77,7 +80,7 @@ Referencie: ${materia} > ${topico} > ${subtopico}.
   return geminiGenerate(model, [{ role: 'user', parts: [{ text: prompt }] }]);
 }
 
-// ---------- Questões estilo ENEM com contexto do CONTEÚDO ----------
+// ---------- Questões estilo ENEM ----------
 async function gerarQuestoesComContexto({
   materia,
   topico,
@@ -130,28 +133,50 @@ EXPLICAÇÃO: [justificativa da resposta correta]
   return geminiGenerate(model, [{ role: 'user', parts: [{ text: prompt }] }]);
 }
 
-// ---------- Alias de compatibilidade ----------
 const gerarQuestoes = gerarQuestoesComContexto;
 
 // ---------- Assistente/chat ----------
 async function chatAssistente({ contexto, mensagem }) {
-  const model = 'gemini-1.5-pro';
-  const system = `
-Você é um tutor para estudantes do Ensino Médio focados no ENEM.
-Seja claro, objetivo e didático. Use exemplos quando possível.
-Contexto: ${JSON.stringify(contexto || {})}
+  const model = "gemini-1.5-flash";
+
+  let prompt = `
+Você é um assistente educacional especializado em ajudar estudantes do Ensino Médio para o ENEM. 
+Seja próximo do usuário, humano, amigável e motivador. 
+Responda sempre de forma clara, concisa e didática, usando exemplos quando possível.
 `.trim();
 
-  return geminiGenerate(model, [
-    { role: 'user', parts: [{ text: system }] },
-    { role: 'user', parts: [{ text: mensagem }] },
+  if (contexto && (contexto.conteudo || contexto.conteudo_id)) {
+    prompt += `
+O estudante está atualmente estudando o seguinte conteúdo: 
+"${contexto.conteudo || "não especificado"}".
+Use esse conteúdo como referência principal em sua resposta.
+`.trim();
+  } else {
+    prompt += `
+Não há um conteúdo específico fornecido. 
+Responda de forma geral, mas sempre útil para os estudos do ENEM.
+`.trim();
+  }
+
+  prompt += `
+Pergunta do estudante: "${mensagem}"
+
+Se a pergunta estiver relacionada ao conteúdo, adapte a resposta para reforçar o aprendizado. 
+Se não houver relação direta, responda de forma geral, mas sempre com foco no estudo para o ENEM.
+`.trim();
+
+  const resposta = await geminiGenerate(model, [
+    { role: "user", parts: [{ text: prompt }] }
   ]);
+
+  return resposta || "Não consegui elaborar uma explicação no momento.";
 }
+
 
 module.exports = {
   geminiGenerate,
   gerarConteudoHTML,
   gerarQuestoesComContexto,
-  gerarQuestoes, // alias
+  gerarQuestoes,
   chatAssistente,
 };

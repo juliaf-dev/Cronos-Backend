@@ -1,31 +1,27 @@
-// src/routes/flashcardsRoutes.js
+// src/routes/flashcards.js
 const express = require("express");
 const router = express.Router();
 const flashcardsController = require("../controllers/flashcardsController");
-const { requireAuth } = require("../middlewares/auth");
-
-// Middleware: todas as rotas exigem autenticação
-router.use(requireAuth);
 
 // Criar flashcard
 router.post("/", flashcardsController.create);
 
-// Listar todos os flashcards do usuário logado
+// Listar por usuário
 router.get("/", flashcardsController.listByUsuario);
 
-// Alias: listar flashcards do usuário logado (rota /usuario)
-router.get("/usuario", flashcardsController.listByUsuario);
-
-// Listar flashcards por matéria do usuário logado
+// Listar por matéria
 router.get("/materia/:materiaId", flashcardsController.listByMateria);
 
-// Atualizar flashcard (pelo ID)
+// Atualizar
 router.put("/:id", flashcardsController.update);
 
-// Remover flashcard (pelo ID)
+// Remover
 router.delete("/:id", flashcardsController.remove);
 
-// Registrar acerto/erro em um flashcard
+// Registrar revisão (spaced repetition)
+router.post("/:id/revisao", flashcardsController.registrarRevisao);
+
+// Registrar resultado (revisado / a revisar)
 router.post("/:id/resultado", flashcardsController.registrarResultado);
 
 module.exports = router;
