@@ -1,126 +1,110 @@
-import User from '../models/User.js';
-import jwt from 'jsonwebtoken';
-import bcrypt from 'bcryptjs';
-import dotenv from 'dotenv';
-import fetch from 'node-fetch';
-import mailjet from 'node-mailjet';
+const pool = require('../config/db');
+const { hashPassword, comparePassword } = require('../utils/password');
+const { signAccess, signRefresh, verifyToken } = require('../utils/jwt');
+const { COOKIE } = require('../config/env');
+const { ok, fail } = require('../utils/http');
 
-dotenv.config();
-
-class AuthController {
-  static async register(req, res) {
-    try {
-      const { username, email, password } = req.body;
-
-      // Validação de formato de e-mail
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
-        return res.status(400).json({ error: 'Formato de e-mail inválido.' });
-      }
-
-      // Verificar se o email já existe
-      const existingUser = await User.findByEmail(email);
-      if (existingUser) {
-        return res.status(400).json({ error: 'Email já está em uso' });
-      }
-
-      // Criar usuário
-      const userId = await User.create({ username, email, password });
-
-      const user = {
-        id: userId,
-        username,
-        email,
-        is_admin: false
-      };
-
-      // Criar sessão
-      req.session.user = user;
-      req.session.save((err) => {
-        if (err) {
-          console.error('Erro ao salvar sessão no registro:', err);
-        }
-      });
-
-      res.status(201).json({
-        message: 'Registro bem-sucedido',
-        user
-      });
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ error: 'Erro ao registrar usuário' });
-    }
-  }
-
-  static async login(req, res) {
-    try {
-      const { email, password } = req.body;
-
-      // Buscar usuário
-      const user = await User.findByEmail(email);
-      if (!user) {
-        return res.status(401).json({ error: 'Credenciais inválidas' });
-      }
-
-      // Verificar senha
-      const validPassword = await bcrypt.compare(password, user.password);
-      if (!validPassword) {
-        return res.status(401).json({ error: 'Credenciais inválidas' });
-      }
-
-      // Criar sessão persistente
-      req.session.user = {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        is_admin: user.is_admin
-      };
-      req.session.save((err) => {
-        if (err) {
-          console.error('Erro ao salvar sessão no login:', err);
-        }
-      });
-
-      res.status(200).json({
-        message: 'Login bem-sucedido',
-        user: req.session.user
-      });
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ error: 'Erro ao fazer login' });
-    }
-  }
-
-  static async logout(req, res) {
-    req.session.destroy((err) => {
-      if (err) {
-        return res.status(500).json({ error: 'Erro ao fazer logout' });
-      }
-      res.clearCookie('connect.sid'); // Nome padrão do cookie de sessão
-      res.json({ message: 'Logout bem-sucedido' });
-    });
-  }
-
-  static async checkAuth(req, res) {
-    console.log('Verificando autenticação. Session ID:', req.sessionID);
-    try {
-      if (req.session?.user) {
-        res.json({
-          isAuthenticated: true,
-          user: req.session.user
-        });
-      } else {
-        res.json({ isAuthenticated: false });
-      }
-    } catch (error) {
-      res.json({ isAuthenticated: false });
-    }
-  }
-
-  // Se não quiser mais confirmação por e-mail, mantenha esse método, mas não use ele no fluxo
-  static async confirmEmail(req, res) {
-    res.status(200).json({ message: 'Confirmação de e-mail desabilitada.' });
+async function register(req, res) {
+  const { nome, email, senha } = req.body;
+  const senha_hash = await hashPassword(senha);
+  try {
+    const [r] = await pool.execute(
+      'INSERT INTO usuarios (nome, email, senha_hash, role) VALUES (?, ?, ?, ?)',
+      [nome, email, senha_hash, 'cliente']
+    );
+    return ok(res, { id: r.insertId });
+  } catch (e) {
+    if (e.code === 'ER_DUP_ENTRY') return fail(res, 'Email já cadastrado', 409);
+    throw e;
   }
 }
 
-export default AuthController;
+async function login(req, res) {
+  const { email, senha } = req.body;
+  const [rows] = await pool.execute(
+    'SELECT id, nome, email, role, senha_hash, token_version, foto_url, last_login_at FROM usuarios WHERE email = ? LIMIT 1',
+    [email]
+  );
+  const user = rows[0];
+  if (!user || !(await comparePassword(senha, user.senha_hash || '')))
+    return fail(res, 'Credenciais inválidas', 401);
+
+  await pool.execute('UPDATE usuarios SET last_login_at = NOW() WHERE id = ?', [user.id]);
+
+  const accessToken = signAccess({ sub: user.id, email: user.email, role: user.role });
+  const refreshToken = signRefresh({ sub: user.id, email: user.email, role: user.role, tv: user.token_version });
+
+  res.cookie(COOKIE.name, refreshToken, {
+    maxAge: COOKIE.maxAgeMs,
+    httpOnly: COOKIE.httpOnly,
+    secure: COOKIE.secure,
+    sameSite: COOKIE.sameSite,
+    path: COOKIE.path
+  });
+
+  return ok(res, {
+    accessToken,
+    user: {
+      id: user.id,
+      nome: user.nome,
+      email: user.email,
+      role: user.role,
+      foto_url: user.foto_url,
+      last_login_at: user.last_login_at
+    }
+  });
+}
+
+async function refresh(req, res) {
+  const token = req.cookies[COOKIE.name];
+  if (!token) return fail(res, 'Sem refresh token', 401);
+
+  try {
+    const payload = verifyToken(token);
+
+    const [rows] = await pool.execute(
+      'SELECT id, nome, email, role, token_version, foto_url, last_login_at FROM usuarios WHERE id = ? LIMIT 1',
+      [payload.sub]
+    );
+    const user = rows[0];
+    if (!user || user.token_version !== payload.tv) {
+      return fail(res, 'Refresh inválido', 401);
+    }
+
+    const accessToken = signAccess({ sub: user.id, email: user.email, role: user.role });
+
+    return ok(res, {
+      accessToken,
+      user: {
+        id: user.id,
+        nome: user.nome,
+        email: user.email,
+        role: user.role,
+        foto_url: user.foto_url,
+        last_login_at: user.last_login_at
+      }
+    });
+  } catch {
+    return fail(res, 'Refresh inválido', 401);
+  }
+}
+
+async function logout(req, res) {
+  res.clearCookie(COOKIE.name, { path: COOKIE.path });
+  return ok(res, { message: 'Logout ok' });
+}
+
+// Placeholder Google OAuth
+async function googleAuth(req, res) {
+  return fail(res, 'Google OAuth ainda não configurado no servidor (CLIENT_ID/SECRET).', 501);
+}
+
+async function me(req, res) {
+  const [rows] = await pool.execute(
+    'SELECT id, nome, email, role, foto_url, last_login_at FROM usuarios WHERE id = ?',
+    [req.user.id]
+  );
+  return ok(res, rows[0] || null);
+}
+
+module.exports = { register, login, refresh, logout, googleAuth, me };
