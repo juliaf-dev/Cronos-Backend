@@ -179,10 +179,11 @@ EXPLICAÇÃO: [justificativa pedagógica]
 const gerarQuestoes = gerarQuestoesComContexto;
 
 // ---------- Assistente/chat ----------
+
 async function chatAssistente({ contexto, mensagem }) {
   const model = "gemini-1.5-flash";
 
-  // 🔹 Função para limpar HTML
+  // 🔹 Função para limpar HTML e manter apenas texto simples
   const stripHTML = (html) => {
     if (!html || typeof html !== "string") return "";
     return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
@@ -193,21 +194,26 @@ ${basePedagogica}
 
 Você é um Assistente Educacional moderno, especializado em ajudar estudantes do Ensino Médio a se prepararem para o ENEM.  
 Sua resposta deve ser **clara, bem estruturada, fundamentada e motivadora**.  
-Escreva em HTML indentado e organizado, mas sem <html>, <head> ou <body>.
+Escreva em HTML indentado e organizado, mas sem <html>, <head> ou <body>.  
 `.trim();
 
   if (contexto && (contexto.conteudo || contexto.conteudo_id)) {
-    const conteudoLimpo = stripHTML(contexto.conteudo);
+    const conteudoTexto = stripHTML(contexto.conteudo);
+
     prompt += `
 📖 Contexto atual do estudante:
-O aluno está estudando: <em>${conteudoLimpo || "não especificado"}</em>.  
-Adapte sua explicação para esse tema.  
+O aluno está estudando o subtópico: <em>${contexto.subtopico || "não especificado"}</em>.  
+
+📌 Texto base para a resposta (conteúdo que o aluno está lendo):
+"${conteudoTexto}"
+
+➡️ Sua explicação deve **começar já introduzindo o tema do subtópico** e depois responder à pergunta.  
 `.trim();
   } else {
     prompt += `
 📖 Contexto atual do estudante:
 Não há conteúdo específico informado.  
-Responda de forma geral, mas sempre útil para o ENEM.  
+Responda de forma geral, mas útil e conectada ao ENEM.  
 `.trim();
   }
 
@@ -216,10 +222,10 @@ Responda de forma geral, mas sempre útil para o ENEM.
 "${mensagem}"
 
 📌 Instruções finais:
-- Estruture em introdução, explicação, exemplos e conclusão.
-- Use <p>, <ul>, <ol>, <blockquote>, <strong>, <em>.
-- ❌ Não use <h1>, <h2>.
-- Sempre conecte o conteúdo ao ENEM.
+- Estruture em introdução (sobre o subtópico), explicação, exemplos e conclusão.  
+- Use <p>, <ul>, <ol>, <blockquote>, <strong>, <em>.  
+- ❌ Nunca use <h1>, <h2>.  
+- Sempre conecte ao ENEM mostrando como esse conteúdo pode aparecer em prova.  
 `.trim();
 
   const resposta = await geminiGenerate(model, [
@@ -228,6 +234,7 @@ Responda de forma geral, mas sempre útil para o ENEM.
 
   return resposta || "Não consegui elaborar uma explicação no momento.";
 }
+
 
 module.exports = {
   geminiGenerate,
