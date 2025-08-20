@@ -35,7 +35,7 @@ async function geminiGenerate(model, contents) {
     });
   } catch (err) {
     console.error('❌ Erro de conexão com Gemini API:', err);
-    return { error: 'connection_error', message: 'Falha de conexão com Gemini API' };
+    return "⚠️ Falha de conexão com Gemini API.";
   }
 
   // Tratamento explícito para erros da API
@@ -44,13 +44,10 @@ async function geminiGenerate(model, contents) {
     console.error(`❌ Gemini erro ${resp.status}: ${txt}`);
 
     if (resp.status === 429) {
-      return {
-        error: 'quota_exceeded',
-        message: 'Limite diário de requisições à Gemini API foi atingido. Tente novamente amanhã ou configure uma chave paga.'
-      };
+      return "⚠️ Limite diário de requisições à Gemini API foi atingido. Tente novamente amanhã ou configure uma chave paga.";
     }
 
-    return { error: 'gemini_error', message: `Gemini erro ${resp.status}` };
+    return `⚠️ Erro na Gemini API (status ${resp.status}).`;
   }
 
   let json;
@@ -58,7 +55,7 @@ async function geminiGenerate(model, contents) {
     json = await resp.json();
   } catch (err) {
     console.error('❌ Erro ao parsear JSON da Gemini API:', err);
-    return { error: 'invalid_response', message: 'Resposta inválida da Gemini API' };
+    return "⚠️ Resposta inválida da Gemini API.";
   }
 
   // 🔹 Log da resposta bruta para debug
@@ -73,7 +70,7 @@ async function geminiGenerate(model, contents) {
 
   if (!text) {
     console.warn('⚠️ Gemini retornou vazio', JSON.stringify(json, null, 2));
-    return { error: 'empty_response', message: 'Gemini não retornou conteúdo' };
+    return "⚠️ Gemini não retornou conteúdo.";
   }
 
   return text;
@@ -85,47 +82,74 @@ const basePedagogica = `... (mantém igual ao seu)`;
 // ---------- Conteúdo didático ----------
 async function gerarConteudoHTML({ materia, topico, subtopico }) {
   const model = 'gemini-1.5-flash';
-  const prompt = `... (mantém igual ao seu)`;
-  return geminiGenerate(model, [{ role: 'user', parts: [{ text: prompt }] }]);
+  const prompt = `Gere um resumo didático em HTML estruturado (com <h2>, <p>, <ul>, <li>) 
+para auxiliar no estudo de ENEM, vestibulares e concursos.
+Tema:
+- Matéria: ${materia}
+- Tópico: ${topico}
+- Subtópico: ${subtopico}
+
+${basePedagogica}`;
+
+  const resposta = await geminiGenerate(model, [
+    { role: 'user', parts: [{ text: prompt }] }
+  ]);
+
+  return typeof resposta === "string" ? resposta : String(resposta);
 }
 
 // ---------- Questões estilo ENEM ----------
 async function gerarQuestoesComContexto({ materia, topico, subtopico, conteudo, quantidade = 5 }) {
   const model = "gemini-1.5-flash";
-  const prompt = `... (mantém igual ao seu)`;
-  return geminiGenerate(model, [{ role: "user", parts: [{ text: prompt }] }]);
+  const prompt = `Crie ${quantidade} questões de múltipla escolha no estilo ENEM
+sobre:
+- Matéria: ${materia}
+- Tópico: ${topico}
+- Subtópico: ${subtopico}
+
+Baseando-se no seguinte conteúdo:
+${conteudo}
+
+${basePedagogica}`;
+
+  const resposta = await geminiGenerate(model, [
+    { role: "user", parts: [{ text: prompt }] }
+  ]);
+
+  return typeof resposta === "string" ? resposta : String(resposta);
 }
 const gerarQuestoes = gerarQuestoesComContexto;
 
 // ---------- Assistente/chat ----------
 async function chatAssistente({ contexto, mensagem }) {
   const model = "gemini-1.5-flash";
-  const stripHTML = (html) => (!html || typeof html !== "string") ? "" : html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  const stripHTML = (html) =>
+    (!html || typeof html !== "string")
+      ? ""
+      : html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 
-  let prompt = `... (mantém igual ao seu)`; // basePedagogica + instruções
+  let prompt = `${basePedagogica}\n\nUsuário perguntou: ${mensagem}\n\n`;
 
   if (contexto && (contexto.conteudo || contexto.conteudo_id)) {
     const conteudoTexto = stripHTML(contexto.conteudo);
     console.log("📖 Conteúdo enviado ao Gemini (subtópico:", contexto.subtopico, "):");
     console.log(conteudoTexto.slice(0, 500) + (conteudoTexto.length > 500 ? "..." : ""));
-    prompt += `...`; // trecho com contexto
+    prompt += `Use também este conteúdo como referência:\n${conteudoTexto}\n\n`;
   } else {
     console.log("ℹ️ Nenhum conteúdo enviado ao Gemini (resposta geral).");
-    prompt += `...`; // resposta geral
   }
 
-  prompt += `...`; // instruções finais
+  prompt += `Responda de forma didática e clara, como um tutor humano ajudando o aluno.`;
+
   console.log("📝 Prompt final enviado ao Gemini:", prompt.slice(0, 1000) + (prompt.length > 1000 ? "...": ""));
 
   const resposta = await geminiGenerate(model, [
     { role: "user", parts: [{ text: prompt }] }
   ]);
 
-  if (typeof resposta === 'object' && resposta.error) {
-    return `<p><strong>⚠️ ${resposta.message}</strong></p>`;
-  }
-
-  return resposta || "Não consegui elaborar uma explicação no momento.";
+  return typeof resposta === "string"
+    ? resposta
+    : "⚠️ Não consegui elaborar uma explicação no momento.";
 }
 
 module.exports = {
