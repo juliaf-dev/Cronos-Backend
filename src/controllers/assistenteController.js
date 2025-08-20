@@ -1,6 +1,7 @@
+// src/controllers/assistenteController.js
 const { ok } = require('../utils/http');
 const IA = require('../services/ia/geminiService');
-const Conteudos = require('./conteudosController');
+const Conteudos = require('../models/conteudos'); // ✅ importa o model Sequelize
 
 async function chat(req, res) {
   try {
@@ -20,7 +21,7 @@ async function chat(req, res) {
       if (conteudoBD) {
         contextoFinal = {
           ...contexto,
-          conteudo: conteudoBD.body, // 🔹 Agora o chat lê o texto real
+          conteudo: conteudoBD.body,      // 🔹 pega o HTML real salvo no banco
           materia: conteudoBD.materia_nome,
           topico: conteudoBD.topico_nome,
           subtopico: conteudoBD.subtopico_nome,
