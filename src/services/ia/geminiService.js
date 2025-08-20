@@ -21,6 +21,7 @@ async function geminiGenerate(model, contents) {
 
   let resp;
   try {
+    console.log("🚀 Enviando requisição para Gemini API...");
     resp = await globalThis.fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -201,7 +202,7 @@ Escreva em HTML indentado e organizado, mas sem <html>, <head> ou <body>.
 
     // 🔹 Loga no backend qual conteúdo realmente vai para o Gemini
     console.log("📖 Conteúdo enviado ao Gemini (subtópico:", contexto.subtopico, "):");
-    console.log(conteudoTexto.slice(0, 500) + (conteudoTexto.length > 500 ? "..." : "")); // só primeiros 500 chars para não poluir
+    console.log(conteudoTexto.slice(0, 500) + (conteudoTexto.length > 500 ? "..." : ""));
 
     prompt += `
 📖 Contexto atual do estudante:
@@ -232,6 +233,9 @@ Responda de forma geral, mas útil e conectada ao ENEM.
 - ❌ Nunca use <h1>, <h2>.  
 - Sempre conecte ao ENEM mostrando como esse conteúdo pode aparecer em prova.  
 `.trim();
+
+  // 🔹 Loga o prompt final para debug
+  console.log("📝 Prompt final enviado ao Gemini:", prompt.slice(0, 1000) + (prompt.length > 1000 ? "..." : ""));
 
   const resposta = await geminiGenerate(model, [
     { role: "user", parts: [{ text: prompt }] }

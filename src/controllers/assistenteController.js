@@ -1,25 +1,7 @@
+// src/controllers/assistenteController.js
 const { ok } = require('../utils/http');
 const IA = require('../services/ia/geminiService');
-const pool = require('../config/db'); // 🔹 conexão direta com o banco
-
-// Função utilitária: busca conteúdo pelo id ou subtopico_id
-async function getConteudoByIdOrSubtopico({ id, subtopicoId }) {
-  let query = "SELECT * FROM conteudos WHERE ";
-  let values = [];
-
-  if (id) {
-    query += "id = ?";
-    values.push(id);
-  } else if (subtopicoId) {
-    query += "subtopico_id = ?";
-    values.push(subtopicoId);
-  } else {
-    return null;
-  }
-
-  const [rows] = await pool.query(query, values);
-  return rows.length ? rows[0] : null;
-}
+const Conteudos = require('./conteudosController'); // ✅ usa o controller já existente
 
 async function chat(req, res) {
   try {
@@ -28,7 +10,7 @@ async function chat(req, res) {
 
     // 🔹 Se vier um ID de conteúdo/subtópico, buscamos no banco
     if (contexto && (contexto.conteudo_id || contexto.subtopico_id)) {
-      const conteudoBD = await getConteudoByIdOrSubtopico({
+      const conteudoBD = await Conteudos.getConteudoByIdOrSubtopico({
         id: contexto.conteudo_id,
         subtopicoId: contexto.subtopico_id,
       });
@@ -36,12 +18,22 @@ async function chat(req, res) {
       if (conteudoBD) {
         contextoFinal = {
           ...contexto,
-          conteudo: conteudoBD.body,          // 🔹 HTML real
+          conteudo: conteudoBD.texto_html || conteudoBD.texto || conteudoBD.body, // 🔹 pega conteúdo real
           materia: conteudoBD.materia_nome,
           topico: conteudoBD.topico_nome,
           subtopico: conteudoBD.subtopico_nome,
         };
+
+        // 🔹 LOG para debug: mostra o que realmente será enviado para a IA
+        console.log("📚 Conteúdo enviado ao Assistente:", {
+          materia: contextoFinal.materia,
+          topico: contextoFinal.topico,
+          subtopico: contextoFinal.subtopico,
+          preview: (contextoFinal.conteudo || "").substring(0, 200) + "..." // mostra só os 200 primeiros caracteres
+        });
       }
+    } else {
+      console.log("⚠️ Nenhum conteúdo específico encontrado, resposta será geral.");
     }
 
     const texto = await IA.chatAssistente({ contexto: contextoFinal, mensagem });
