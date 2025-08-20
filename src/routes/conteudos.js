@@ -6,7 +6,7 @@ const { requireAdmin } = require('../middlewares/auth');
 // Público autenticado → auto-get-ou-generate
 router.get('/subtopico/:subtopicoId', c.getOrGenerate);
 
-// Apenas admin
+// Apenas admin pode criar manualmente, editar e remover
 router.post('/', requireAdmin, c.create);
 router.put('/:id', requireAdmin, c.update);
 router.delete('/:id', requireAdmin, c.remove);
