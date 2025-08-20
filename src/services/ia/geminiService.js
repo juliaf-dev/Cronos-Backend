@@ -21,20 +21,19 @@ async function geminiGenerate(model, contents) {
 
   let resp;
   try {
-    console.log("🚀 Enviando requisição para Gemini API...");
     resp = await globalThis.fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ contents }),
     });
   } catch (err) {
-    console.error('❌ Erro de conexão com Gemini API:', err);
+    console.error('Erro de conexão com Gemini API:', err);
     throw new Error('Falha de conexão com Gemini API');
   }
 
   if (!resp.ok) {
     const txt = await resp.text().catch(() => '');
-    console.error(`❌ Gemini erro ${resp.status}: ${txt}`);
+    console.error(`Gemini erro ${resp.status}: ${txt}`);
     throw new Error(`Gemini erro ${resp.status}`);
   }
 
@@ -42,12 +41,12 @@ async function geminiGenerate(model, contents) {
   try {
     json = await resp.json();
   } catch (err) {
-    console.error('❌ Erro ao parsear JSON da Gemini API:', err);
+    console.error('Erro ao parsear JSON da Gemini API:', err);
     throw new Error('Resposta inválida da Gemini API');
   }
 
   // 🔹 Log da resposta bruta para debug
-  console.log("📩 Gemini JSON bruto:", JSON.stringify(json, null, 2));
+  console.log("Gemini JSON bruto:", JSON.stringify(json, null, 2));
 
   const text =
     json?.candidates?.[0]?.content?.parts
@@ -180,6 +179,7 @@ EXPLICAÇÃO: [justificativa pedagógica]
 const gerarQuestoes = gerarQuestoesComContexto;
 
 // ---------- Assistente/chat ----------
+
 async function chatAssistente({ contexto, mensagem }) {
   const model = "gemini-1.5-flash";
 
@@ -200,10 +200,6 @@ Escreva em HTML indentado e organizado, mas sem <html>, <head> ou <body>.
   if (contexto && (contexto.conteudo || contexto.conteudo_id)) {
     const conteudoTexto = stripHTML(contexto.conteudo);
 
-    // 🔹 Loga no backend qual conteúdo realmente vai para o Gemini
-    console.log("📖 Conteúdo enviado ao Gemini (subtópico:", contexto.subtopico, "):");
-    console.log(conteudoTexto.slice(0, 500) + (conteudoTexto.length > 500 ? "..." : ""));
-
     prompt += `
 📖 Contexto atual do estudante:
 O aluno está estudando o subtópico: <em>${contexto.subtopico || "não especificado"}</em>.  
@@ -214,8 +210,6 @@ O aluno está estudando o subtópico: <em>${contexto.subtopico || "não especifi
 ➡️ Sua explicação deve **começar já introduzindo o tema do subtópico** e depois responder à pergunta.  
 `.trim();
   } else {
-    console.log("ℹ️ Nenhum conteúdo enviado ao Gemini (resposta geral).");
-
     prompt += `
 📖 Contexto atual do estudante:
 Não há conteúdo específico informado.  
@@ -234,15 +228,13 @@ Responda de forma geral, mas útil e conectada ao ENEM.
 - Sempre conecte ao ENEM mostrando como esse conteúdo pode aparecer em prova.  
 `.trim();
 
-  // 🔹 Loga o prompt final para debug
-  console.log("📝 Prompt final enviado ao Gemini:", prompt.slice(0, 1000) + (prompt.length > 1000 ? "..." : ""));
-
   const resposta = await geminiGenerate(model, [
     { role: "user", parts: [{ text: prompt }] }
   ]);
 
   return resposta || "Não consegui elaborar uma explicação no momento.";
 }
+
 
 module.exports = {
   geminiGenerate,
