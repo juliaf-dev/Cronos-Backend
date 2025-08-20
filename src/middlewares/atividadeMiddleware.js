@@ -1,4 +1,3 @@
-// src/middleware/atividadeMiddleware.js
 const pool = require("../config/db");
 
 async function registrarAtividade(req, res, next) {
@@ -14,7 +13,7 @@ async function registrarAtividade(req, res, next) {
       [usuario_id, hoje]
     );
 
-    // calcula dias seguidos
+    // calcula streak
     let dias_seguidos = 1;
     if (!registro) {
       const [[ontemRegistro]] = await pool.execute(
