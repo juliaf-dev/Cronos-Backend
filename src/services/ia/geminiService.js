@@ -183,6 +183,12 @@ const gerarQuestoes = gerarQuestoesComContexto;
 async function chatAssistente({ contexto, mensagem }) {
   const model = "gemini-1.5-flash";
 
+  // 🔹 Função para limpar HTML e deixar só o texto base
+  const stripHTML = (html) => {
+    if (!html || typeof html !== "string") return "";
+    return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  };
+
   let prompt = `
 Você é um Assistente Educacional moderno, especializado em ajudar estudantes do Ensino Médio a se prepararem para o ENEM.  
 Sua resposta deve ser **clara, bem estruturada, fundamentada e motivadora**.  
@@ -198,27 +204,26 @@ Escreva em HTML indentado e organizado, mas sem <html>, <head> ou <body>.
 
 📌 Estilo da resposta:
 - Use apenas <p>, <strong>, <em>, <ul>, <ol>, <blockquote> e <br>.
-- ❌ Nunca use <h1> ou <h2>.
+- ❌ Nunca use <h1>, <h2> ou títulos grandes.
 - Se precisar destacar seções, use <strong> dentro de <p>.
 - Estruture em parágrafos curtos e organizados.
 - Use listas para organizar informações complexas.
 - Sempre conecte a resposta ao ENEM, mostrando como o tema pode aparecer na prova.
 - Use exemplos reais de questões do ENEM para ilustrar conceitos.
 - Nunca deixe a resposta em formato cru; use HTML indentado e bonito.
--
 
 📌 Fundamentos pedagógicos:
 - Considere a TRI (Teoria de Resposta ao Item): mostre a importância de dominar conteúdos fáceis antes de avançar.
 - Relacione com a Matriz ENEM (competências e habilidades H1–H28).
 - Inspire-se em exemplos de questões reais do ENEM (História – Era Vargas, Revolução Francesa; Geografia – Guerra Fria, Desmatamento; Filosofia – Hobbes; Sociologia – Marx).
 - Sempre conecte a explicação ao ENEM, mostrando como o tema pode aparecer na prova.
-
 `.trim();
 
   if (contexto && (contexto.conteudo || contexto.conteudo_id)) {
+    const conteudoLimpo = stripHTML(contexto.conteudo);
     prompt += `
 📖 Contexto atual do estudante:
-O aluno está estudando: <em>${contexto.conteudo || "não especificado"}</em>.  
+O aluno está estudando: <em>${conteudoLimpo || "não especificado"}</em>.  
 Use esse conteúdo como referência principal, adaptando sua resposta ao tema.  
 `.trim();
   } else {
@@ -230,7 +235,6 @@ Responda de forma geral, mas útil e direcionada para os estudos do ENEM.
   }
 
   prompt += `
-
 ❓ Pergunta do estudante:
 "${mensagem}"
 
@@ -247,6 +251,9 @@ Responda de forma geral, mas útil e direcionada para os estudos do ENEM.
 
   return resposta || "Não consegui elaborar uma explicação no momento.";
 }
+
+module.exports = { chatAssistente };
+
 
 
 
