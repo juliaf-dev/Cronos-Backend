@@ -21,7 +21,6 @@ CORS_ORIGIN: process.env.CORS_ORIGIN || 'http://localhost:3000',
     secure: isProd,
     sameSite: 'none',
     path: '/api/auth',
-    secure: true
   },
   isProd
 };
