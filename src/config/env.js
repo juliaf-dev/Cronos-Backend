@@ -19,7 +19,7 @@ CORS_ORIGIN: process.env.CORS_ORIGIN || 'http://localhost:3000',
     maxAgeMs: 1000 * 60 * 60 * 24 * 30, // 30 dias
     httpOnly: true,
     secure: isProd,
-    sameSite: 'lax',
+    sameSite: 'nome',
     path: '/api/auth'
   },
   isProd
