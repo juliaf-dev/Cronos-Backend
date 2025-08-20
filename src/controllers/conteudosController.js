@@ -202,5 +202,31 @@ async function remove(req, res) {
 
   return ok(res, { id: Number(id) });
 }
+// Busca conteúdo direto no banco (para uso interno)
+async function getConteudoByIdOrSubtopico({ id, subtopicoId }) {
+  const pool = require('../config/db');
 
-module.exports = { create, getOrGenerate, update, remove };
+  let query = "SELECT * FROM conteudos WHERE ";
+  let values = [];
+
+  if (id) {
+    query += "id = ?";
+    values.push(id);
+  } else if (subtopicoId) {
+    query += "subtopico_id = ?";
+    values.push(subtopicoId);
+  } else {
+    return null;
+  }
+
+  const [rows] = await pool.query(query, values);
+  return rows.length ? rows[0] : null;
+}
+
+module.exports = {
+  getOrGenerate,
+  create,
+  update,
+  remove,
+  getConteudoByIdOrSubtopico, // ✅ exporta para o assistente usar
+};
