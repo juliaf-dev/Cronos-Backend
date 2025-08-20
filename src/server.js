@@ -7,7 +7,7 @@ const rateLimit = require("express-rate-limit");
 
 const { PORT, CORS_ORIGIN } = require("./config/env");
 const { errorHandler } = require("./middlewares/errorHandler");
-const { requireAuth, requireAdmin, refreshFromCookie } = require("./middlewares/auth");
+const { requireAuth, requireAdmin } = require("./middlewares/auth");
 
 // Rotas
 const authRoutes = require("./routes/auth");
@@ -29,8 +29,8 @@ app.use(express.json({ limit: "2mb" }));
 app.use(cookieParser());
 
 // 🔹 Configuração de CORS
-// Se não houver env, libera manualmente o frontend da Vercel
-const allowedOrigins = (CORS_ORIGIN || "https://cronos-frontend-five.vercel.app")
+// Se não houver env, libera manualmente localhost + vercel
+const allowedOrigins = (CORS_ORIGIN || "http://localhost:3000,https://cronos-frontend-five.vercel.app")
   .split(",")
   .map(o => o.trim());
 
@@ -54,8 +54,7 @@ app.get("/api/health", (req, res) =>
   res.json({ ok: true, service: "cronos-backend" })
 );
 
-// 🔹 Auth
-app.post("/api/auth/refresh-cookie", refreshFromCookie);
+// 🔹 Auth (limite de requisições)
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100 });
 app.use("/api/auth", authLimiter, authRoutes);
 
