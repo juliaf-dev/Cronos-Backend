@@ -62,13 +62,42 @@ async function geminiGenerate(model, contents) {
   return text;
 }
 
-// ---------- Conteúdo didático ----------
+// ---------- Bloco pedagógico fixo ----------
+const basePedagogica = `
+📘 Fundamentos pedagógicos fixos (não inventar fora disso):
+
+TRI (Teoria de Resposta ao Item):
+- Mede proficiência do aluno, não apenas acertos brutos.
+- Parâmetros: Dificuldade (D), Discriminação (A), Acerto Casual (C).
+- Errar questão fácil pesa mais do que acertar apenas questões difíceis.
+- Estratégia: dominar questões fáceis e médias antes das difíceis.
+
+Matriz ENEM (Ciências Humanas):
+- H1 a H28: interpretação de textos, análise histórica, crítica social.
+- Cobrança interdisciplinar (História + Geografia + Filosofia + Sociologia).
+- Questões trazem textos, gráficos e imagens como suporte.
+
+BNCC:
+- Desenvolver competências gerais: pensamento crítico, argumentação, consciência histórica e cidadania.
+- Conectar conteúdos a contextos atuais e à vida prática do estudante.
+
+Exemplos de questões do ENEM:
+- História: Era Vargas (2022, interpretação de fontes).
+- História: Revolução Francesa (2019, contextualização histórica).
+- Geografia: Guerra Fria (2023, blocos geopolíticos).
+- Geografia: Desmatamento Amazônico (2021, impactos ambientais).
+- Filosofia: Hobbes e Contratualismo (2017).
+- Sociologia: Marx e Capitalismo (2016).
+`;
+
 // ---------- Conteúdo didático ----------
 async function gerarConteudoHTML({ materia, topico, subtopico }) {
   const model = 'gemini-1.5-flash';
   const prompt = `
+${basePedagogica}
+
 Você é um professor especialista no ENEM. 
-Gere um conteúdo didático completo, claro e bonito, alinhado à BNCC e à Matriz do ENEM, incorporando princípios da TRI.
+Gere um conteúdo didático completo, claro e bonito, alinhado à BNCC e à Matriz do ENEM.
 Use apenas HTML válido interno (sem <html>, <head> ou <body>).
 ⚠️ Não use <h1> nem coloque títulos extras automáticos.
 
@@ -79,25 +108,6 @@ Use apenas HTML válido interno (sem <html>, <head> ou <body>).
 - Use <blockquote> para curiosidades, citações ou conexões históricas.
 - Termine com uma conclusão motivadora, conectando o aprendizado ao ENEM.
 
-📌 BLOCO 1 — Teoria de Resposta ao Item (TRI)
-- A TRI é usada no ENEM para calcular a proficiência.
-- Parâmetros: D (dificuldade), A (discriminação), C (acerto casual).
-- Erros em questões fáceis pesam muito; acertos só em difíceis não garantem alta nota.
-- Classificação didática: Fácil (alta recorrência), Médio (interpretação), Difícil (abstração e interdisciplinaridade).
-➡️ Explique o conteúdo de forma que dialogue com esse modelo, mostrando ao aluno a importância de dominar conceitos básicos antes de avançar.
-
-📌 BLOCO 2 — Matriz de Referência ENEM (Ciências Humanas)
-Competências e habilidades (H1–H28) devem orientar o conteúdo. 
-Associe teoria e exemplos práticos a essas competências, reforçando como o subtopico (${subtopico}) aparece em provas.
-
-📌 BLOCO 3 — Histórico de Questões (ENEM)
-Use como inspiração de estilo e contextualização:
-- História: Era Vargas (2022, médio), Revolução Francesa (2019, difícil).
-- Geografia: Guerra Fria (2023, médio), Desmatamento Amazônico (2021, fácil).
-- Filosofia: Contratualismo de Hobbes (2017, médio).
-- Sociologia: Trabalho e Capitalismo em Marx (2016, médio).
-➡️ Relacione o subtopico atual a esse tipo de abordagem contextualizada, sem inventar dados falsos.
-
 📌 Contexto do aluno:
 Matéria: ${materia}
 Tópico: ${topico}
@@ -105,8 +115,6 @@ Subtópico: ${subtopico}
 
 ⚠️ IMPORTANTE:
 - Responda em HTML organizado e limpo.
-- Não adicione títulos principais (<h1>).
-- Seja didático, claro e motivador.
 - Não invente dados ou fatos fora do contexto fornecido.
 - Não fale diretamente com o leitor, mantenha o tom impessoal.
 `.trim();
@@ -114,8 +122,6 @@ Subtópico: ${subtopico}
   return geminiGenerate(model, [{ role: 'user', parts: [{ text: prompt }] }]);
 }
 
-
-// ---------- Questões estilo ENEM ----------
 // ---------- Questões estilo ENEM adaptadas para flashcards ----------
 async function gerarQuestoesComContexto({
   materia,
@@ -123,7 +129,6 @@ async function gerarQuestoesComContexto({
   subtopico,
   conteudo,
   quantidade = 5,
-  dificuldade = "medio",
 }) {
   const model = "gemini-1.5-flash";
 
@@ -135,88 +140,60 @@ async function gerarQuestoesComContexto({
       : String(conteudo || "");
 
   const prompt = `
+${basePedagogica}
+
 Você é um elaborador de questões no estilo ENEM.
 Crie exatamente ${quantidade} questões de múltipla escolha (A-E) com apenas UMA correta.
-Nível médio de profissionalismo e fidelidade às diretrizes do ENEM.
 
 📌 Diretrizes pedagógicas:
-- Leve em conta a Teoria de Resposta ao Item (TRI):
-  - Fáceis = alta recorrência, diretos.
-  - Médios = interpretação e análise.
-  - Difíceis = interdisciplinaridade/abstração.
-- Use como referência a Matriz de Ciências Humanas (Competências 1–7, H1–H28).
-- Inspire-se em questões históricas do ENEM (Vargas 2022, Revolução Francesa 2019, Guerra Fria 2023, etc.), mas não invente enunciados falsos.
-- O foco deve ser ${materia} > ${topico} > ${subtopico}.
-- Estilo claro, objetivo, contextualizado (como no ENEM).
+- Use TRI (fácil, médio, difícil).
+- Conecte-se às competências e habilidades da Matriz ENEM (H1–H28).
+- Contextualize como no ENEM: textos, gráficos, documentos, análises.
 
 📌 Contexto base:
+Matéria: ${materia}
+Tópico: ${topico}
+Subtópico: ${subtopico}
 Título: ${tituloBase}
 Texto de apoio:
 ${textoBase}
 
 📌 FORMATO EXATO DE SAÍDA (para flashcards):
-Cada questão deve seguir rigorosamente o seguinte modelo:
-
-Q) [Enunciado da questão contextualizado]
+Q) [Enunciado]
 A) [alternativa A]
 B) [alternativa B]
 C) [alternativa C]
 D) [alternativa D]
 E) [alternativa E]
 RESPOSTA CORRETA: [letra de A a E]
-EXPLICAÇÃO: [justificativa pedagógica e breve, clara e didática]
+EXPLICAÇÃO: [justificativa pedagógica]
 
 ⚠️ IMPORTANTE:
 - Não use numeração nas questões (apenas "Q)").
-- Não repita o enunciado na resposta.
-- A explicação deve ajudar o aluno a entender por que a correta é certa e as outras não, como em um flashcard.
+- Explicações devem ser curtas, didáticas e ajudar na fixação.
 `.trim();
 
   return geminiGenerate(model, [{ role: "user", parts: [{ text: prompt }] }]);
 }
 
-
 const gerarQuestoes = gerarQuestoesComContexto;
 
-// ---------- Assistente/chat ----------
 // ---------- Assistente/chat ----------
 async function chatAssistente({ contexto, mensagem }) {
   const model = "gemini-1.5-flash";
 
-  // 🔹 Função para limpar HTML e deixar só o texto base
+  // 🔹 Função para limpar HTML
   const stripHTML = (html) => {
     if (!html || typeof html !== "string") return "";
     return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
   };
 
   let prompt = `
+${basePedagogica}
+
 Você é um Assistente Educacional moderno, especializado em ajudar estudantes do Ensino Médio a se prepararem para o ENEM.  
 Sua resposta deve ser **clara, bem estruturada, fundamentada e motivadora**.  
-Escreva em HTML indentado e organizado, mas sem <html>, <head> ou <body>.  
-
-📌 Diretrizes de estilo:
-- Use <p> para explicações e introduções.
-- Use <ul> e <ol> para organizar pontos importantes.
-- Use <blockquote> para insights, citações ou conexões históricas.
-- Use <strong> ou <em> para destacar termos relevantes.
-- Seja amigável, mas sempre com rigor acadêmico.
-- Traga exemplos práticos sempre que possível.
-
-📌 Estilo da resposta:
-- Use apenas <p>, <strong>, <em>, <ul>, <ol>, <blockquote> e <br>.
-- ❌ Nunca use <h1>, <h2> ou títulos grandes.
-- Se precisar destacar seções, use <strong> dentro de <p>.
-- Estruture em parágrafos curtos e organizados.
-- Use listas para organizar informações complexas.
-- Sempre conecte a resposta ao ENEM, mostrando como o tema pode aparecer na prova.
-- Use exemplos reais de questões do ENEM para ilustrar conceitos.
-- Nunca deixe a resposta em formato cru; use HTML indentado e bonito.
-
-📌 Fundamentos pedagógicos:
-- Considere a TRI (Teoria de Resposta ao Item): mostre a importância de dominar conteúdos fáceis antes de avançar.
-- Relacione com a Matriz ENEM (competências e habilidades H1–H28).
-- Inspire-se em exemplos de questões reais do ENEM (História – Era Vargas, Revolução Francesa; Geografia – Guerra Fria, Desmatamento; Filosofia – Hobbes; Sociologia – Marx).
-- Sempre conecte a explicação ao ENEM, mostrando como o tema pode aparecer na prova.
+Escreva em HTML indentado e organizado, mas sem <html>, <head> ou <body>.
 `.trim();
 
   if (contexto && (contexto.conteudo || contexto.conteudo_id)) {
@@ -224,13 +201,13 @@ Escreva em HTML indentado e organizado, mas sem <html>, <head> ou <body>.
     prompt += `
 📖 Contexto atual do estudante:
 O aluno está estudando: <em>${conteudoLimpo || "não especificado"}</em>.  
-Use esse conteúdo como referência principal, adaptando sua resposta ao tema.  
+Adapte sua explicação para esse tema.  
 `.trim();
   } else {
     prompt += `
 📖 Contexto atual do estudante:
 Não há conteúdo específico informado.  
-Responda de forma geral, mas útil e direcionada para os estudos do ENEM.  
+Responda de forma geral, mas sempre útil para o ENEM.  
 `.trim();
   }
 
@@ -238,11 +215,11 @@ Responda de forma geral, mas útil e direcionada para os estudos do ENEM.
 ❓ Pergunta do estudante:
 "${mensagem}"
 
-📌 Instrução final:
-- Responda de maneira **profunda, mas acessível**.
-- Estruture a resposta em blocos bem organizados (introdução, explicação, exemplos, conclusão).
-- Traga **dicas práticas de estudo** relacionadas ao ENEM.
-- Nunca deixe a resposta em formato cru; use HTML indentado e bonito.
+📌 Instruções finais:
+- Estruture em introdução, explicação, exemplos e conclusão.
+- Use <p>, <ul>, <ol>, <blockquote>, <strong>, <em>.
+- ❌ Não use <h1>, <h2>.
+- Sempre conecte o conteúdo ao ENEM.
 `.trim();
 
   const resposta = await geminiGenerate(model, [
@@ -251,11 +228,6 @@ Responda de forma geral, mas útil e direcionada para os estudos do ENEM.
 
   return resposta || "Não consegui elaborar uma explicação no momento.";
 }
-
-module.exports = { chatAssistente };
-
-
-
 
 module.exports = {
   geminiGenerate,
