@@ -1,6 +1,6 @@
 const { ok } = require('../utils/http');
 const IA = require('../services/ia/geminiService');
-const Conteudos = require('../models/conteudos'); // ajuste o path pro teu model
+const Conteudos = require('./conteudosController');
 
 async function chat(req, res) {
   try {
