@@ -10,7 +10,7 @@ module.exports = {
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME
   },
-  CORS_ORIGIN: process.env.FRONTEND_URL || 'http://localhost:3000',
+CORS_ORIGIN: process.env.CORS_ORIGIN || 'http://localhost:3000',
   JWT_SECRET: process.env.JWT_SECRET,
   SESSION_SECRET: process.env.SESSION_SECRET,
   GEMINI_API_KEY: process.env.REACT_APP_GEMINI_API_KEY, // conforme seu .env
