@@ -29,10 +29,11 @@ app.use(express.json({ limit: "2mb" }));
 app.use(cookieParser());
 
 // 🔹 Configuração de CORS
-// Se não houver env, libera manualmente localhost + vercel
-const allowedOrigins = (CORS_ORIGIN || "http://localhost:3000,https://cronos-frontend-five.vercel.app")
+// Permite múltiplos origins (localhost + vercel)
+const allowedOrigins = (CORS_ORIGIN ||
+  "http://localhost:3000,https://cronos-frontend-five.vercel.app")
   .split(",")
-  .map(o => o.trim());
+  .map((o) => o.trim());
 
 app.use(
   cors({
@@ -54,7 +55,7 @@ app.get("/api/health", (req, res) =>
   res.json({ ok: true, service: "cronos-backend" })
 );
 
-// 🔹 Auth (limite de requisições)
+// 🔹 Auth (com limite de requisições)
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100 });
 app.use("/api/auth", authLimiter, authRoutes);
 
@@ -63,7 +64,7 @@ app.use("/api/materias", materiasRoutes);
 app.use("/api/subtopicos", subtopicosPublicRoutes);
 app.use("/api/assistente", assistenteRoutes);
 
-// 🔹 Rotas protegidas
+// 🔹 Rotas protegidas (exigem access token no header)
 app.use("/api/quiz", requireAuth, quizRoutes);
 app.use("/api/evolucao", requireAuth, evolucaoRoutes);
 app.use("/api/resumos", requireAuth, resumosRoutes);
@@ -85,5 +86,5 @@ app.use(errorHandler);
 
 // 🔹 Inicialização
 app.listen(PORT, () => {
-  console.log(`🚀 Cronos API rodando em http://localhost:${PORT}`);
+  console.log(`🚀 Cronos API rodando na porta ${PORT}`);
 });
