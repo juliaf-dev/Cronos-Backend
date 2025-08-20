@@ -57,14 +57,14 @@ app.use("/api/auth", authLimiter, authRoutes);
 // 🔹 Rotas públicas
 app.use("/api/materias", materiasRoutes);
 app.use("/api/subtopicos", subtopicosPublicRoutes);
-app.use("/api/assistente", assistenteRoutes); // ✅ agora público
+app.use("/api/assistente", assistenteRoutes);
 
 // 🔹 Rotas protegidas
 app.use("/api/quiz", requireAuth, quizRoutes);
-app.use("/api/evolucao", evolucaoRoutes);
+app.use("/api/evolucao", requireAuth, evolucaoRoutes); // ✅ agora protegido
 app.use("/api/resumos", requireAuth, resumosRoutes);
 app.use("/api/flashcards", requireAuth, flashcardsRoutes);
-app.use("/api", requireAuth, protectedRoutes); // genéricas
+app.use("/api", requireAuth, protectedRoutes);
 
 // 🔹 Rota admin
 app.get("/api/admin/ping", requireAuth, requireAdmin, (req, res) =>
