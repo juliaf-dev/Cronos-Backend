@@ -63,22 +63,55 @@ async function geminiGenerate(model, contents) {
 }
 
 // ---------- Conteúdo didático ----------
+// ---------- Conteúdo didático ----------
 async function gerarConteudoHTML({ materia, topico, subtopico }) {
   const model = 'gemini-1.5-flash';
   const prompt = `
-Você é um professor. Gere um conteúdo didático alinhado à BNCC e à Matriz do ENEM, com dicas de TRI.
-Estruture em HTML válido, mas sem tags <html>, apenas blocos internos.
-Use a seguinte hierarquia:
-<h1>${subtopico}</h1>
-<p>Introdução</p>
-<h2>Teoria</h2>
-<h2>Exemplos</h2>
-<h2>Dicas da TRI</h2>
-Referencie: ${materia} > ${topico} > ${subtopico}.
+Você é um professor especialista no ENEM. 
+Gere um conteúdo didático completo, claro e bonito, alinhado à BNCC e à Matriz do ENEM, incorporando princípios da TRI.
+Use apenas HTML válido interno (sem <html>, <head> ou <body>).
+⚠️ Não use <h1> nem coloque títulos extras automáticos.
+
+📌 Diretrizes de estilo:
+- Comece com uma introdução em <p>.
+- Use subtítulos em <h2> e <h3> para dividir seções (teoria, exemplos, aplicações, dicas).
+- Inclua listas (<ul>, <ol>) para exemplos, passos ou conceitos centrais.
+- Use <blockquote> para curiosidades, citações ou conexões históricas.
+- Termine com uma conclusão motivadora, conectando o aprendizado ao ENEM.
+
+📌 BLOCO 1 — Teoria de Resposta ao Item (TRI)
+- A TRI é usada no ENEM para calcular a proficiência.
+- Parâmetros: D (dificuldade), A (discriminação), C (acerto casual).
+- Erros em questões fáceis pesam muito; acertos só em difíceis não garantem alta nota.
+- Classificação didática: Fácil (alta recorrência), Médio (interpretação), Difícil (abstração e interdisciplinaridade).
+➡️ Explique o conteúdo de forma que dialogue com esse modelo, mostrando ao aluno a importância de dominar conceitos básicos antes de avançar.
+
+📌 BLOCO 2 — Matriz de Referência ENEM (Ciências Humanas)
+Competências e habilidades (H1–H28) devem orientar o conteúdo. 
+Associe teoria e exemplos práticos a essas competências, reforçando como o subtopico (${subtopico}) aparece em provas.
+
+📌 BLOCO 3 — Histórico de Questões (ENEM)
+Use como inspiração de estilo e contextualização:
+- História: Era Vargas (2022, médio), Revolução Francesa (2019, difícil).
+- Geografia: Guerra Fria (2023, médio), Desmatamento Amazônico (2021, fácil).
+- Filosofia: Contratualismo de Hobbes (2017, médio).
+- Sociologia: Trabalho e Capitalismo em Marx (2016, médio).
+➡️ Relacione o subtopico atual a esse tipo de abordagem contextualizada, sem inventar dados falsos.
+
+📌 Contexto do aluno:
+Matéria: ${materia}
+Tópico: ${topico}
+Subtópico: ${subtopico}
+
+⚠️ IMPORTANTE:
+- Responda em HTML organizado e limpo.
+- Não adicione títulos principais (<h1>).
+- Seja didático, claro e motivador.
 `.trim();
 
   return geminiGenerate(model, [{ role: 'user', parts: [{ text: prompt }] }]);
 }
+
 
 // ---------- Questões estilo ENEM ----------
 async function gerarQuestoesComContexto({
