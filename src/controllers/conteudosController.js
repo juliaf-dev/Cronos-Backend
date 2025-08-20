@@ -15,32 +15,27 @@ async function create(req, res) {
     }
 
     // Buscar nomes
-    const [[materia]]   = await pool.execute(
-      'SELECT id, nome FROM materias WHERE id = ?',
-      [materia_id]
-    );
-    const [[topico]]    = await pool.execute(
-      'SELECT id, nome FROM topicos WHERE id = ?',
-      [topico_id]
-    );
-    const [[subtopico]] = await pool.execute(
-      'SELECT id, nome FROM subtopicos WHERE id = ?',
-      [subtopico_id]
-    );
+    const [[materia]]   = await pool.execute('SELECT id, nome FROM materias WHERE id = ?', [materia_id]);
+    const [[topico]]    = await pool.execute('SELECT id, nome FROM topicos WHERE id = ?', [topico_id]);
+    const [[subtopico]] = await pool.execute('SELECT id, nome FROM subtopicos WHERE id = ?', [subtopico_id]);
 
     if (!materia || !topico || !subtopico) {
-      return res.status(404).json({
-        ok: false,
-        message: 'Matéria, tópico ou subtopico não encontrados'
-      });
+      return res.status(404).json({ ok: false, message: 'Matéria, tópico ou subtopico não encontrados' });
     }
 
     // Geração com IA
-    const texto = await gerarConteudoHTML({
+    let texto = await gerarConteudoHTML({
       materia: materia.nome,
       topico: topico.nome,
       subtopico: subtopico.nome
     });
+
+    // Fallback → evita crash se IA não responder
+    if (!texto) {
+      console.warn("⚠️ gerarConteudoHTML retornou vazio. Usando fallback.");
+      texto = "Conteúdo temporariamente indisponível.";
+    }
+    const conteudo = String(texto);
 
     // Salvar
     const [r] = await pool.execute(
@@ -53,8 +48,8 @@ async function create(req, res) {
         topico.id,
         subtopico.id,
         subtopico.nome,
-        texto,
-        texto,
+        conteudo,
+        conteudo,
         1,
         'Gemini API',
         1,
@@ -65,7 +60,7 @@ async function create(req, res) {
     return ok(res, {
       id: r.insertId,
       titulo: subtopico.nome,
-      body: texto,
+      body: conteudo,
       materia_id: materia.id,
       topico_id: topico.id,
       subtopico_id: subtopico.id,
@@ -74,12 +69,8 @@ async function create(req, res) {
       subtopico_nome: subtopico.nome
     }, 201);
   } catch (err) {
-    console.error('Erro em conteudosController.create:', err);
-    return res.status(500).json({
-      ok: false,
-      message: 'Erro ao gerar conteúdo',
-      error: err.message
-    });
+    console.error('❌ Erro em conteudosController.create:', err);
+    return res.status(500).json({ ok: false, message: 'Erro ao gerar conteúdo', error: err.message });
   }
 }
 
@@ -89,10 +80,7 @@ async function getOrGenerate(req, res) {
     const { subtopicoId } = req.params;
 
     if (!subtopicoId) {
-      return res.status(400).json({
-        ok: false,
-        message: "subtopicoId obrigatório"
-      });
+      return res.status(400).json({ ok: false, message: "subtopicoId obrigatório" });
     }
 
     // Verifica se já existe
@@ -127,18 +115,21 @@ async function getOrGenerate(req, res) {
     );
 
     if (!info) {
-      return res.status(404).json({
-        ok: false,
-        message: "Matéria, tópico ou subtópico não encontrados"
-      });
+      return res.status(404).json({ ok: false, message: "Matéria, tópico ou subtópico não encontrados" });
     }
 
     // Gerar via IA
-    const texto = await gerarConteudoHTML({
+    let texto = await gerarConteudoHTML({
       materia: info.materia_nome,
       topico: info.topico_nome,
       subtopico: info.subtopico_nome
     });
+
+    if (!texto) {
+      console.warn("⚠️ gerarConteudoHTML retornou vazio em getOrGenerate. Usando fallback.");
+      texto = "Conteúdo temporariamente indisponível.";
+    }
+    const conteudo = String(texto);
 
     // Salvar no banco
     const [r] = await pool.execute(
@@ -151,8 +142,8 @@ async function getOrGenerate(req, res) {
         info.topico_id,
         info.subtopico_id,
         info.subtopico_nome,
-        texto,
-        texto,
+        conteudo,
+        conteudo,
         1,
         "Gemini API",
         1,
@@ -163,7 +154,7 @@ async function getOrGenerate(req, res) {
     return ok(res, {
       id: r.insertId,
       titulo: info.subtopico_nome,
-      body: texto,
+      body: conteudo,
       materia_id: info.materia_id,
       topico_id: info.topico_id,
       subtopico_id: info.subtopico_id,
@@ -172,12 +163,8 @@ async function getOrGenerate(req, res) {
       subtopico_nome: info.subtopico_nome
     });
   } catch (err) {
-    console.error("Erro em getOrGenerate:", err);
-    return res.status(500).json({
-      ok: false,
-      message: "Erro ao gerar conteúdo",
-      error: err.message
-    });
+    console.error("❌ Erro em getOrGenerate:", err);
+    return res.status(500).json({ ok: false, message: "Erro ao gerar conteúdo", error: err.message });
   }
 }
 
@@ -186,9 +173,11 @@ async function update(req, res) {
   const { id } = req.params;
   const { texto } = req.body;
 
+  const conteudo = String(texto || "");
+
   await pool.execute(
     'UPDATE conteudos SET texto = ?, texto_html = ?, atualizado_em = NOW() WHERE id = ?',
-    [texto, texto, id]
+    [conteudo, conteudo, id]
   );
 
   return ok(res, { id: Number(id) });
@@ -197,15 +186,12 @@ async function update(req, res) {
 // Remover (apenas admin)
 async function remove(req, res) {
   const { id } = req.params;
-
   await pool.execute('DELETE FROM conteudos WHERE id = ?', [id]);
-
   return ok(res, { id: Number(id) });
 }
+
 // Busca conteúdo direto no banco (para uso interno)
 async function getConteudoByIdOrSubtopico({ id, subtopicoId }) {
-  const pool = require('../config/db');
-
   let query = "SELECT * FROM conteudos WHERE ";
   let values = [];
 
@@ -228,5 +214,5 @@ module.exports = {
   create,
   update,
   remove,
-  getConteudoByIdOrSubtopico, // ✅ exporta para o assistente usar
+  getConteudoByIdOrSubtopico,
 };
