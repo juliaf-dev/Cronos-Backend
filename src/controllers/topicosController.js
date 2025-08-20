@@ -36,22 +36,56 @@ async function listByMateria(req, res) {
 }
 
 async function create(req, res) {
-  const { materia_id, nome, ordem = 0 } = req.body;
-  const [r] = await pool.execute(
-    'INSERT INTO topicos (materia_id, nome, ordem) VALUES (?, ?, ?)',
-    [materia_id, nome, ordem]
-  );
-  return ok(res, { id: r.insertId }, 201);
+  const body = req.body;
+
+  try {
+    // Caso venha um array → inserção em massa
+    if (Array.isArray(body)) {
+      const results = [];
+      for (let item of body) {
+        if (!item.materia_id || !item.nome) {
+          return res.status(400).json({ ok: false, message: "materia_id e nome são obrigatórios" });
+        }
+        const [r] = await pool.execute(
+          'INSERT INTO topicos (materia_id, nome, ordem) VALUES (?, ?, ?)',
+          [item.materia_id, item.nome, item.ordem ?? 0]
+        );
+        results.push({ id: r.insertId, nome: item.nome });
+      }
+      return ok(res, { inserted: results }, 201);
+    }
+
+    // Caso venha um único objeto
+    const { materia_id, nome, ordem = 0 } = body;
+    if (!materia_id || !nome) {
+      return res.status(400).json({ ok: false, message: "materia_id e nome são obrigatórios" });
+    }
+
+    const [r] = await pool.execute(
+      'INSERT INTO topicos (materia_id, nome, ordem) VALUES (?, ?, ?)',
+      [materia_id, nome, ordem]
+    );
+    return ok(res, { id: r.insertId, nome }, 201);
+
+  } catch (err) {
+    console.error("Erro ao criar tópico:", err);
+    return res.status(500).json({ ok: false, message: "Erro ao criar tópico" });
+  }
 }
 
 async function update(req, res) {
   const { id } = req.params;
   const { nome, ordem } = req.body;
+
+  if (!nome || ordem === undefined) {
+    return res.status(400).json({ ok: false, message: "nome e ordem são obrigatórios" });
+  }
+
   await pool.execute(
     'UPDATE topicos SET nome = ?, ordem = ? WHERE id = ?',
     [nome, ordem, id]
   );
-  return ok(res, { id: Number(id) });
+  return ok(res, { id: Number(id), nome });
 }
 
 async function remove(req, res) {
