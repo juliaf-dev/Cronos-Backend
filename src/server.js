@@ -27,9 +27,19 @@ app.disable("x-powered-by");
 app.use(morgan("dev"));
 app.use(express.json({ limit: "2mb" }));
 app.use(cookieParser());
+
+// 🔹 Configuração de CORS (aceita múltiplas origins da env)
+const allowedOrigins = (CORS_ORIGIN || "").split(",").map(o => o.trim());
+
 app.use(
   cors({
-    origin: CORS_ORIGIN,
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
   })
 );
