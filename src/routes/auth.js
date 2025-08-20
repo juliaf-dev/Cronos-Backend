@@ -18,14 +18,14 @@ const loginSchema = z.object({
 });
 
 const changePasswordSchema = z.object({
-  senhaAtual: z.string().min(6, "A senha atual deve ter pelo menos 6 caracteres"),
-  novaSenha: z.string().min(6, "A nova senha deve ter pelo menos 6 caracteres")
+  senhaAtual: z.string().min(6),
+  novaSenha: z.string().min(6)
 });
 
 // Rotas públicas
 router.post('/register', validate(registerSchema), AuthController.register);
 router.post('/login', validate(loginSchema), AuthController.login);
-router.post('/refresh', AuthController.refresh);
+router.post('/refresh', AuthController.refresh);   // <-- usa cookie automaticamente
 router.post('/logout', AuthController.logout);
 router.post('/google', AuthController.googleAuth);
 

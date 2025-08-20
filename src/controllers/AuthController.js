@@ -8,7 +8,7 @@ const { OAuth2Client } = require("google-auth-library");
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 //
-// ✅ cadastro de usuário + evolução inicial
+// Cadastro de usuário + evolução inicial
 //
 async function register(req, res) {
   const { nome, email, senha } = req.body;
@@ -22,7 +22,6 @@ async function register(req, res) {
 
     const usuarioId = r.insertId;
 
-    // cria evolução inicial
     await pool.execute(
       `INSERT INTO evolucao (usuario_id, data, minutos_estudados, acessos, dias_seguidos)
        VALUES (?, CURDATE(), 0, 0, 0)`,
@@ -37,7 +36,7 @@ async function register(req, res) {
 }
 
 //
-// ✅ login + evolução diária
+// Login
 //
 async function login(req, res) {
   const { email, senha } = req.body;
@@ -53,7 +52,6 @@ async function login(req, res) {
 
   await pool.execute('UPDATE usuarios SET last_login_at = NOW() WHERE id = ?', [user.id]);
 
-  // cria/atualiza evolução do dia
   await pool.execute(
     `INSERT INTO evolucao (usuario_id, data, minutos_estudados, acessos, dias_seguidos)
      VALUES (?, CURDATE(), 0, 1, 1)
@@ -64,12 +62,13 @@ async function login(req, res) {
   const accessToken = signAccess({ sub: user.id, email: user.email, role: user.role });
   const refreshToken = signRefresh({ sub: user.id, email: user.email, role: user.role, tv: user.token_version });
 
+  // refreshToken só em cookie
   res.cookie(COOKIE.name, refreshToken, {
     maxAge: COOKIE.maxAgeMs,
     httpOnly: COOKIE.httpOnly,
     secure: COOKIE.secure,
     sameSite: COOKIE.sameSite,
-    path: COOKIE.path
+    path: COOKIE.path,
   });
 
   return ok(res, {
@@ -80,13 +79,13 @@ async function login(req, res) {
       email: user.email,
       role: user.role,
       foto_url: user.foto_url,
-      last_login_at: user.last_login_at
-    }
+      last_login_at: user.last_login_at,
+    },
   });
 }
 
 //
-// ✅ refresh
+// Refresh (via cookie)
 //
 async function refresh(req, res) {
   const token = req.cookies[COOKIE.name];
@@ -113,8 +112,8 @@ async function refresh(req, res) {
         email: user.email,
         role: user.role,
         foto_url: user.foto_url,
-        last_login_at: user.last_login_at
-      }
+        last_login_at: user.last_login_at,
+      },
     });
   } catch {
     return fail(res, 'Refresh inválido', 401);
@@ -122,7 +121,7 @@ async function refresh(req, res) {
 }
 
 //
-// ✅ logout
+// Logout
 //
 async function logout(req, res) {
   res.clearCookie(COOKIE.name, { path: COOKIE.path });
@@ -130,14 +129,13 @@ async function logout(req, res) {
 }
 
 //
-// ✅ Google OAuth
+// Google OAuth (sem alteração grande, só tokens consistentes)
 //
 async function googleAuth(req, res) {
   try {
     const { credential } = req.body;
     if (!credential) return fail(res, "Credencial do Google não enviada", 400);
 
-    // valida token com Google
     const ticket = await googleClient.verifyIdToken({
       idToken: credential,
       audience: GOOGLE_CLIENT_ID,
@@ -146,7 +144,6 @@ async function googleAuth(req, res) {
     const payload = ticket.getPayload();
     const { sub: googleId, email, name, picture } = payload;
 
-    // verifica se usuário já existe
     let [rows] = await pool.execute(
       "SELECT * FROM usuarios WHERE google_id = ? OR email = ? LIMIT 1",
       [googleId, email]
@@ -154,41 +151,24 @@ async function googleAuth(req, res) {
     let user = rows[0];
 
     if (!user) {
-      // cria usuário novo
       const [r] = await pool.execute(
         "INSERT INTO usuarios (nome, email, google_id, role, foto_url, data_criacao, token_version) VALUES (?, ?, ?, ?, ?, NOW(), 0)",
         [name, email, googleId, "cliente", picture]
       );
 
-      user = {
-        id: r.insertId,
-        nome: name,
-        email,
-        role: "cliente",
-        foto_url: picture,
-        google_id: googleId,
-        token_version: 0,
-      };
+      user = { id: r.insertId, nome: name, email, role: "cliente", foto_url: picture, google_id: googleId, token_version: 0 };
 
-      // cria evolução inicial
       await pool.execute(
         `INSERT INTO evolucao (usuario_id, data, minutos_estudados, acessos, dias_seguidos)
          VALUES (?, CURDATE(), 0, 1, 1)`,
         [user.id]
       );
     } else {
-      // atualiza último login
       await pool.execute("UPDATE usuarios SET last_login_at = NOW() WHERE id = ?", [user.id]);
     }
 
-    // gera tokens
     const accessToken = signAccess({ sub: user.id, email: user.email, role: user.role });
-    const refreshToken = signRefresh({
-      sub: user.id,
-      email: user.email,
-      role: user.role,
-      tv: user.token_version,
-    });
+    const refreshToken = signRefresh({ sub: user.id, email: user.email, role: user.role, tv: user.token_version });
 
     res.cookie(COOKIE.name, refreshToken, {
       maxAge: COOKIE.maxAgeMs,
@@ -200,14 +180,7 @@ async function googleAuth(req, res) {
 
     return ok(res, {
       accessToken,
-      user: {
-        id: user.id,
-        nome: user.nome,
-        email: user.email,
-        role: user.role,
-        foto_url: user.foto_url,
-        last_login_at: user.last_login_at,
-      },
+      user: { id: user.id, nome: user.nome, email: user.email, role: user.role, foto_url: user.foto_url, last_login_at: user.last_login_at },
     });
   } catch (err) {
     console.error("GoogleAuth Error:", err);
@@ -216,7 +189,7 @@ async function googleAuth(req, res) {
 }
 
 //
-// ✅ retorna perfil
+// Perfil
 //
 async function me(req, res) {
   const [rows] = await pool.execute(
@@ -227,7 +200,7 @@ async function me(req, res) {
 }
 
 //
-// ✅ atualizar perfil (nome, email, senha, foto)
+// Atualizar perfil
 //
 async function updateProfile(req, res) {
   const { nome, email, senha, foto_url } = req.body;
@@ -261,7 +234,7 @@ async function updateProfile(req, res) {
 }
 
 //
-// ✅ alterar apenas a senha
+// Alterar senha
 //
 async function changePassword(req, res) {
   const { senhaAtual, novaSenha } = req.body;
@@ -271,10 +244,7 @@ async function changePassword(req, res) {
     return fail(res, 'Informe a senha atual e a nova senha', 400);
   }
 
-  const [rows] = await pool.execute(
-    'SELECT senha_hash FROM usuarios WHERE id = ? LIMIT 1',
-    [userId]
-  );
+  const [rows] = await pool.execute('SELECT senha_hash FROM usuarios WHERE id = ? LIMIT 1', [userId]);
   const user = rows[0];
   if (!user) return fail(res, 'Usuário não encontrado', 404);
 
@@ -282,10 +252,7 @@ async function changePassword(req, res) {
   if (!senhaOk) return fail(res, 'Senha atual incorreta', 400);
 
   const novaSenhaHash = await hashPassword(novaSenha);
-  await pool.execute(
-    'UPDATE usuarios SET senha_hash = ? WHERE id = ?',
-    [novaSenhaHash, userId]
-  );
+  await pool.execute('UPDATE usuarios SET senha_hash = ? WHERE id = ?', [novaSenhaHash, userId]);
 
   return ok(res, { message: 'Senha alterada com sucesso' });
 }
