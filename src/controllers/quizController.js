@@ -9,7 +9,9 @@ const { gerarQuestoesComContexto } = require("../services/ia/geminiService");
 // Limpa resposta da Gemini (remove ```json ... ```)
 function limparJsonGemini(raw) {
   if (!raw) return null;
-  const match = raw.match(/```json([\s\S]*?)```/i) || raw.match(/```([\s\S]*?)```/i);
+  const match =
+    raw.match(/```json([\s\S]*?)```/i) ||
+    raw.match(/```([\s\S]*?)```/i);
   return (match ? match[1] : raw).trim();
 }
 
@@ -63,10 +65,14 @@ async function criarSessao(req, res) {
     let { conteudo_id, materia, topico, subtopico, conteudo } = req.body;
 
     if (!usuario_id) {
-      return res.status(401).json({ ok: false, message: "Usuário não autenticado" });
+      return res
+        .status(401)
+        .json({ ok: false, message: "Usuário não autenticado" });
     }
     if (!conteudo_id) {
-      return res.status(400).json({ ok: false, message: "conteudo_id é obrigatório" });
+      return res
+        .status(400)
+        .json({ ok: false, message: "conteudo_id é obrigatório" });
     }
 
     let quizId, questoes, altMap, materia_id;
@@ -89,7 +95,7 @@ async function criarSessao(req, res) {
        ORDER BY qq.id ASC`,
         [quizId]
       );
-      altMap = await carregarAlternativasMap(questoes.map(q => q.id));
+      altMap = await carregarAlternativasMap(questoes.map((q) => q.id));
     } else {
       // 🔹 Tenta buscar questões já existentes no banco
       let [questoesSelecionadas] = await pool.query(
@@ -101,9 +107,11 @@ async function criarSessao(req, res) {
         [conteudo_id]
       );
 
-      let altTemp = await carregarAlternativasMap(questoesSelecionadas.map(q => q.id));
+      let altTemp = await carregarAlternativasMap(
+        questoesSelecionadas.map((q) => q.id)
+      );
       questoesSelecionadas = questoesSelecionadas.filter(
-        q => altTemp.has(q.id) && altTemp.get(q.id).length === 5
+        (q) => altTemp.has(q.id) && altTemp.get(q.id).length === 5
       );
 
       // 🔹 Se não houver 10 válidas, gerar via IA
@@ -121,18 +129,27 @@ async function criarSessao(req, res) {
         if (!conteudo) {
           return res.status(400).json({
             ok: false,
-            message: "Não foi possível gerar questões: conteúdo não encontrado no banco.",
+            message:
+              "Não foi possível gerar questões: conteúdo não encontrado no banco.",
           });
         }
 
-        const raw = await gerarQuestoesComContexto({ materia, topico, subtopico, conteudo });
+        const raw = await gerarQuestoesComContexto({
+          materia,
+          topico,
+          subtopico,
+          conteudo,
+        });
         const cleaned = limparJsonGemini(raw);
         let novas;
         try {
           novas = JSON.parse(cleaned);
         } catch (err) {
           console.error("❌ JSON inválido da Gemini:", cleaned);
-          return res.status(500).json({ ok: false, message: "Falha ao interpretar resposta da Gemini" });
+          return res.status(500).json({
+            ok: false,
+            message: "Falha ao interpretar resposta da Gemini",
+          });
         }
 
         for (const q of novas) {
@@ -147,7 +164,7 @@ async function criarSessao(req, res) {
           let alternativas = normalizarAlternativas(q.alternativas);
 
           const usadas = new Set();
-          alternativas = alternativas.filter(alt => {
+          alternativas = alternativas.filter((alt) => {
             if (!alt.letra) return false;
             if (usadas.has(alt.letra)) return false;
             usadas.add(alt.letra);
@@ -156,14 +173,15 @@ async function criarSessao(req, res) {
 
           const letras = ["A", "B", "C", "D", "E"];
           for (const l of letras) {
-            if (!alternativas.find(a => a.letra === l)) {
+            if (!alternativas.find((a) => a.letra === l)) {
               alternativas.push({ letra: l, texto: `Opção ${l}` });
             }
           }
 
+          // 🔹 Usa INSERT IGNORE para evitar erro de chave duplicada
           for (const alt of alternativas.slice(0, 5)) {
             await pool.execute(
-              `INSERT INTO alternativas (questao_id, letra, texto)
+              `INSERT IGNORE INTO alternativas (questao_id, letra, texto)
                VALUES (?, ?, ?)`,
               [questaoId, alt.letra, alt.texto]
             );
@@ -178,11 +196,13 @@ async function criarSessao(req, res) {
       }
 
       if (questoesSelecionadas.length < 10) {
-        return res.status(400).json({ ok: false, message: "Não foi possível gerar quiz completo" });
+        return res
+          .status(400)
+          .json({ ok: false, message: "Não foi possível gerar quiz completo" });
       }
 
       questoes = questoesSelecionadas.slice(0, 10);
-      altMap = await carregarAlternativasMap(questoes.map(q => q.id));
+      altMap = await carregarAlternativasMap(questoes.map((q) => q.id));
       materia_id = questoes[0]?.materia_id || null;
 
       const [quizIns] = await pool.execute(
@@ -211,7 +231,7 @@ async function criarSessao(req, res) {
 
     // 🔹 Montar retorno
     const questoesComAlternativas = await Promise.all(
-      questoes.map(async q => {
+      questoes.map(async (q) => {
         const [[row]] = await pool.execute(
           `SELECT enunciado, alternativa_correta, explicacao FROM questoes WHERE id = ? LIMIT 1`,
           [q.id]
@@ -227,10 +247,17 @@ async function criarSessao(req, res) {
       })
     );
 
-    return res.json({ ok: true, quiz: { quiz_id: quizId, questoes: questoesComAlternativas } });
+    return res.json({
+      ok: true,
+      quiz: { quiz_id: quizId, questoes: questoesComAlternativas },
+    });
   } catch (err) {
     console.error("❌ Erro ao criar sessão de quiz:", err);
-    return res.status(500).json({ ok: false, message: "Erro interno ao criar quiz", error: err.message });
+    return res.status(500).json({
+      ok: false,
+      message: "Erro interno ao criar quiz",
+      error: err.message,
+    });
   }
 }
 
@@ -243,7 +270,11 @@ async function responder(req, res) {
     const { quiz_id, questao_id, alternativa_id } = req.body;
 
     if (!usuario_id || !quiz_id || !questao_id || !alternativa_id) {
-      return res.status(400).json({ ok: false, message: "usuario_id, quiz_id, questao_id e alternativa_id são obrigatórios" });
+      return res.status(400).json({
+        ok: false,
+        message:
+          "usuario_id, quiz_id, questao_id e alternativa_id são obrigatórios",
+      });
     }
 
     const [vr] = await pool.execute(
@@ -251,7 +282,9 @@ async function responder(req, res) {
       [usuario_id, quiz_id, questao_id]
     );
     if (vr.length === 0) {
-      return res.status(400).json({ ok: false, message: "Questão não pertence a este quiz" });
+      return res
+        .status(400)
+        .json({ ok: false, message: "Questão não pertence a este quiz" });
     }
 
     const [[row]] = await pool.execute(
@@ -262,10 +295,14 @@ async function responder(req, res) {
       [alternativa_id, questao_id]
     );
     if (!row) {
-      return res.status(404).json({ ok: false, message: "Alternativa inválida" });
+      return res
+        .status(404)
+        .json({ ok: false, message: "Alternativa inválida" });
     }
 
-    const correta = row.letra_escolhida.toUpperCase() === row.letra_correta.toUpperCase();
+    const correta =
+      row.letra_escolhida.toUpperCase() ===
+      row.letra_correta.toUpperCase();
 
     await pool.execute(
       `UPDATE quiz_resultados
@@ -283,7 +320,11 @@ async function responder(req, res) {
     });
   } catch (err) {
     console.error("❌ Erro ao responder questão:", err);
-    return res.status(500).json({ ok: false, message: "Erro interno ao responder", error: err.message });
+    return res.status(500).json({
+      ok: false,
+      message: "Erro interno ao responder",
+      error: err.message,
+    });
   }
 }
 
@@ -296,7 +337,9 @@ async function finalizar(req, res) {
     const { quiz_id } = req.body;
 
     if (!usuario_id || !quiz_id) {
-      return res.status(400).json({ ok: false, message: "usuario_id e quiz_id são obrigatórios" });
+      return res
+        .status(400)
+        .json({ ok: false, message: "usuario_id e quiz_id são obrigatórios" });
     }
 
     const [[tot]] = await pool.execute(
@@ -307,10 +350,16 @@ async function finalizar(req, res) {
     );
 
     if (tot.total !== 10) {
-      return res.status(400).json({ ok: false, message: `Quiz inválido: esperado 10, encontrado ${tot.total}` });
+      return res.status(400).json({
+        ok: false,
+        message: `Quiz inválido: esperado 10, encontrado ${tot.total}`,
+      });
     }
     if (tot.pendentes > 0) {
-      return res.status(400).json({ ok: false, message: `Ainda faltam ${tot.pendentes} questões para responder` });
+      return res.status(400).json({
+        ok: false,
+        message: `Ainda faltam ${tot.pendentes} questões para responder`,
+      });
     }
 
     const [[agg]] = await pool.execute(
@@ -320,10 +369,20 @@ async function finalizar(req, res) {
       [usuario_id, quiz_id]
     );
 
-    return res.json({ ok: true, quiz_id, total: tot.total, acertos: agg.acertos || 0, erros: agg.erros || 0 });
+    return res.json({
+      ok: true,
+      quiz_id,
+      total: tot.total,
+      acertos: agg.acertos || 0,
+      erros: agg.erros || 0,
+    });
   } catch (err) {
     console.error("❌ Erro ao finalizar quiz:", err);
-    return res.status(500).json({ ok: false, message: "Erro interno ao finalizar quiz", error: err.message });
+    return res.status(500).json({
+      ok: false,
+      message: "Erro interno ao finalizar quiz",
+      error: err.message,
+    });
   }
 }
 
@@ -336,7 +395,9 @@ async function resumo(req, res) {
     const { quiz_id } = req.params;
 
     if (!usuario_id) {
-      return res.status(401).json({ ok: false, message: "Usuário não autenticado" });
+      return res
+        .status(401)
+        .json({ ok: false, message: "Usuário não autenticado" });
     }
 
     const [itens] = await pool.execute(
@@ -354,7 +415,11 @@ async function resumo(req, res) {
     return res.json({ ok: true, quiz_id, itens });
   } catch (err) {
     console.error("❌ Erro ao carregar resumo:", err);
-    return res.status(500).json({ ok: false, message: "Erro interno ao carregar resumo", error: err.message });
+    return res.status(500).json({
+      ok: false,
+      message: "Erro interno ao carregar resumo",
+      error: err.message,
+    });
   }
 }
 
@@ -384,7 +449,11 @@ async function historico(req, res) {
     return res.json({ ok: true, quizzes: rows });
   } catch (err) {
     console.error("❌ Erro ao carregar histórico:", err);
-    return res.status(500).json({ ok: false, message: "Erro interno ao carregar histórico", error: err.message });
+    return res.status(500).json({
+      ok: false,
+      message: "Erro interno ao carregar histórico",
+      error: err.message,
+    });
   }
 }
 

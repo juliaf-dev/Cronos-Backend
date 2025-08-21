@@ -240,18 +240,39 @@ Seja detalhista no conteudo, minimo de 1000 palavras no total.
 
 
 
-const gerarQuestoes = gerarQuestoesComContexto;
-
 // src/services/ia/gerarQuestoesComContexto.js
+const { geminiGenerate } = require("./geminiService");
+
+/**
+ * Extrai o primeiro bloco JSON válido de uma resposta do Gemini
+ */
+function extrairPrimeiroJSON(texto) {
+  if (!texto) return "[]";
+
+  // Tenta capturar só o primeiro bloco ```json ... ```
+  const match = texto.match(/```json([\s\S]*?)```/);
+  if (match) {
+    return match[1].trim();
+  }
+
+  // Se não achou delimitador, retorna tudo (pode ser JSON puro)
+  return texto.trim();
+}
+
+/**
+ * Remove HTML e normaliza espaços
+ */
+function stripHTML(html) {
+  return (!html || typeof html !== "string")
+    ? ""
+    : html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Gera questões de múltipla escolha a partir do contexto
+ */
 async function gerarQuestoesComContexto({ materia, topico, subtopico, conteudo }) {
   const model = "gemini-1.5-flash";
-
-  // 🔹 Remove tags HTML do conteúdo e normaliza espaços
-  const stripHTML = (html) =>
-    (!html || typeof html !== "string")
-      ? ""
-      : html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-
   const conteudoBase = stripHTML(conteudo);
 
   // 🔹 Prompt robusto
@@ -298,14 +319,25 @@ Crie exatamente 10 questões no estilo ENEM para uso em FLASHCARDS, baseadas em:
 ]
 `;
 
+  // 🔹 Chamada Gemini
   const resposta = await geminiGenerate(model, [
     { role: "user", parts: [{ text: prompt }] }
   ]);
 
-  return typeof resposta === "string" ? resposta : String(resposta);
+  // 🔹 Extrair JSON puro
+  let texto = typeof resposta === "string" ? resposta : String(resposta);
+  texto = extrairPrimeiroJSON(texto);
+
+  try {
+    return JSON.parse(texto); // já retorna array de questões
+  } catch (err) {
+    console.error("❌ Erro parseando JSON do Gemini:", err, texto);
+    return [];
+  }
 }
 
 module.exports = { gerarQuestoesComContexto };
+
 
 
 
