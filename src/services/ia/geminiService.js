@@ -218,9 +218,8 @@ Seja detalhista no conteudo, minimo de 1000 palavras no total.
 - O conteúdo deve ser didático, claro e conciso.
 - Estruture o texto com subtítulos (<h2>, <h3> se necessário), parágrafos e listas.
 - ❌ Nunca coloque título geral no texto (nem <h1>, nem o subtópico como título inicial).
-- ✅ O texto deve começar direto com <h2> ou <p>.
+- ✅ O texto deve começar direto com <h2> ou <p>, mas sem título geral.
 - Faça o texto didático direto, sem introdução ou título geral.
-
 `;
 
   const resposta = await geminiGenerate(model, [
@@ -231,12 +230,14 @@ Seja detalhista no conteudo, minimo de 1000 palavras no total.
 
   // 🔹 Sanitização: remove blocos markdown, títulos indesejados e espaços extras
   conteudo = conteudo
-    .replace(/```html|```/gi, "")   // remove delimitadores markdown
-    .replace(/<h1[^>]*>.*?<\/h1>/gi, "") // remove qualquer <h1>
+    .replace(/```html|```/gi, "")           // remove delimitadores markdown
+    .replace(/<h1[^>]*>.*?<\/h1>/gi, "")   // remove qualquer <h1>
+    .replace(/^\s*<h2[^>]*>.*?<\/h2>/i, "") // remove <h2> inicial, se for o primeiro elemento
     .trim();
 
   return conteudo;
 }
+
 
 
 const gerarQuestoes = gerarQuestoesComContexto;
