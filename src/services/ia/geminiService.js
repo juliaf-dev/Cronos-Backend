@@ -198,8 +198,13 @@ Tema:
 - Subtópico: ${subtopico}
 
 Use a base pedagógica abaixo apenas como referência conceitual (NÃO inclua diretamente no texto final do aluno):
-${basePedagogica}`;
+${basePedagogica}
 
+⚠️ Regras obrigatórias:
+- O conteúdo deve ser didático, claro e conciso,
+- Estruture o texto com títulos, parágrafos,
+- Não coloque titulo geral no texto,
+`;
   const resposta = await geminiGenerate(model, [
     { role: 'user', parts: [{ text: prompt }] }
   ]);
