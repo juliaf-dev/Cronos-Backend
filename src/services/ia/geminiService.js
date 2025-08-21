@@ -218,13 +218,15 @@ async function gerarQuestoesComContexto({ materia, topico, subtopico, conteudo, 
 
   const conteudoBase = stripHTML(conteudo);
 
-  const prompt = `Crie ${quantidade} questões de múltipla escolha no estilo ENEM,
-no formato JSON de flashcards.  
+  const prompt = `Crie ${quantidade} questões de múltipla escolha pensando no enem,
+no formato de flashcards.  
 
 ⚠️ Regras obrigatórias:
 - Alternativas devem sempre estar em ordem alfabética (A até E).
-- A alternativa com a resposta correta deve variar entre as questões .
+- A alternativa com a resposta correta deve variar entre as questões.
 - O JSON deve ser válido e utilizável diretamente.
+- edite ao maximo repetir alternativas corretas em sequência, escolha sempre uma aleatoria entre A, B, C, D, e E
+- Nunca faça perguntas que precisem das alternativas no enunciado, pq as alternativas só aparecem depois que o user diz saber a resposta.
 
 Formato esperado:
 [
