@@ -60,7 +60,7 @@ async function carregarAlternativasMap(questaoIds) {
 async function criarSessao(req, res) {
   try {
     const usuario_id = req.user?.id || req.body.usuario_id;
-    const { conteudo_id, materia, topico, subtopico, conteudo } = req.body;
+    let { conteudo_id, materia, topico, subtopico, conteudo } = req.body;
 
     if (!usuario_id) {
       return res.status(401).json({ ok: false, message: "Usuário não autenticado" });
@@ -109,6 +109,23 @@ async function criarSessao(req, res) {
       // Se não houver 10, gerar via IA
       if (questoesSelecionadas.length < 10) {
         console.log("⚡ Gerando questões via Gemini...");
+
+        // 🔹 Buscar conteúdo se não foi enviado no body
+        if (!conteudo) {
+          const [[rowConteudo]] = await pool.execute(
+            `SELECT texto_html, texto FROM conteudos WHERE id = ? LIMIT 1`,
+            [conteudo_id]
+          );
+          conteudo = rowConteudo?.texto_html || rowConteudo?.texto || null;
+        }
+
+        if (!conteudo) {
+          return res.status(400).json({
+            ok: false,
+            message: "Não foi possível gerar questões: conteúdo não encontrado no banco.",
+          });
+        }
+
         const raw = await gerarQuestoesComContexto({ materia, topico, subtopico, conteudo });
         const cleaned = limparJsonGemini(raw);
         let novas;
