@@ -75,31 +75,132 @@ async function geminiGenerate(model, contents) {
 }
 
 // ---------- Bloco pedagógico fixo ----------
-const basePedagogica = `📘 Fundamentos pedagógicos fixos (não inventar fora disso):
+const basePedagogica = `
+📘 Fundamentos pedagógicos fixos (não inventar fora disso)
 
-TRI (Teoria de Resposta ao Item):
-- Mede proficiência do aluno, não apenas acertos brutos.
-- Parâmetros: Dificuldade (D), Discriminação (A), Acerto Casual (C).
-- Errar questão fácil pesa mais do que acertar apenas questões difíceis.
-- Estratégia: dominar questões fáceis e médias antes das difíceis.
+📌 BLOCO 1 — Teoria de Resposta ao Item (TRI)
+A TRI (Teoria de Resposta ao Item) é o modelo estatístico usado pelo ENEM para calcular a proficiência do estudante.
 
-Matriz ENEM (Ciências Humanas):
-- H1 a H28: interpretação de textos, análise histórica, crítica social.
-- Cobrança interdisciplinar (História + Geografia + Filosofia + Sociologia).
-- Questões trazem textos, gráficos e imagens como suporte.
+Como funciona:
+- Cada questão é calibrada com 3 parâmetros:
+  • D (Dificuldade) → o quão difícil o item é.
+  • A (Discriminação) → o quanto o item diferencia alunos de baixa e alta proficiência.
+  • C (Acerto casual) → probabilidade de acerto por chute.
+- O aluno não ganha a mesma pontuação em todas as questões.
+- Acertos em questões fáceis têm muito peso na nota → se o aluno acerta difíceis mas erra fáceis, o modelo considera inconsistência.
+- Erros em fáceis reduzem muito a nota, mesmo com acertos em difíceis.
 
-BNCC:
-- Desenvolver competências gerais: pensamento crítico, argumentação, consciência histórica e cidadania.
-- Conectar conteúdos a contextos atuais e à vida prática do estudante.
+Classificação de dificuldade (estimativa didática):
+- Fácil → conteúdos de alta recorrência, diretos, contextualizados.
+- Médio → exigem análise, interpretação de gráficos ou documentos.
+- Difícil → interdisciplinaridade, abstração, contexto histórico mais complexo.
 
-Exemplos de questões do ENEM:
-- História: Era Vargas (2022, interpretação de fontes).
-- História: Revolução Francesa (2019, contextualização histórica).
-- Geografia: Guerra Fria (2023, blocos geopolíticos).
-- Geografia: Desmatamento Amazônico (2021, impactos ambientais).
-- Filosofia: Hobbes e Contratualismo (2017).
-- Sociologia: Marx e Capitalismo (2016).
+---
+
+📌 BLOCO 2 — Matriz de Referência ENEM (Ciências Humanas)
+Competência 1 – Compreender os elementos culturais que constituem as identidades.
+  H1: Interpretar historicamente e/ou geograficamente fontes documentais.
+  H2: Analisar a produção da memória pelas sociedades humanas.
+  H3: Associar manifestações culturais ao seu contexto histórico e geográfico.
+  H4: Comparar pontos de vista sobre identidades sociais e culturais.
+
+Competência 2 – Compreender as transformações dos espaços geográficos.
+  H5: Analisar interações homem-natureza.
+  H6: Interpretar diferentes representações espaciais.
+  H7: Identificar os processos de ocupação dos espaços.
+  H8: Relacionar usos de tecnologias ao espaço geográfico.
+
+Competência 3 – Entender a produção das relações sociais e culturais.
+  H9: Compreender a cidadania como construção histórica.
+  H10: Identificar formas de organização social.
+  H11: Analisar conflitos sociais em diferentes épocas.
+  H12: Relacionar organização política ao espaço.
+
+Competência 4 – Compreender os processos históricos.
+  H13: Identificar registros históricos em diferentes fontes.
+  H14: Reconhecer diferentes formas de poder e dominação.
+  H15: Relacionar acontecimentos históricos e suas consequências.
+  H16: Avaliar o papel das revoluções, guerras e transformações sociais.
+
+Competência 5 – Utilizar conceitos das ciências humanas para compreender a realidade.
+  H17: Analisar representações gráficas e cartográficas.
+  H18: Interpretar índices estatísticos.
+  H19: Relacionar conceitos de política, economia, cultura e sociedade.
+  H20: Avaliar propostas de intervenção na realidade.
+
+Competência 6 – Compreender a relação entre produção e espaço.
+  H21: Identificar formas de organização do trabalho.
+  H22: Analisar transformações nos sistemas produtivos.
+  H23: Relacionar processos sociais e econômicos às tecnologias.
+  H24: Compreender impactos socioambientais da produção.
+
+Competência 7 – Entender a cidadania e os direitos humanos.
+  H25: Identificar manifestações de cidadania.
+  H26: Analisar conquistas e lutas sociais.
+  H27: Reconhecer desigualdades sociais.
+  H28: Avaliar ações de participação social.
+
+---
+
+📌 BLOCO 3 — Histórico de Questões (amostra organizada)
+
+📖 História
+- 2022 | Azul | Q45 | Tema: Brasil República → Era Vargas
+  Competência: 4 (Relacionar acontecimentos históricos e suas consequências)
+  Nível TRI: Médio
+  Texto-base: Excerto de discurso de Vargas sobre a CLT.
+
+- 2019 | Amarela | Q38 | Tema: Idade Moderna → Revolução Francesa
+  Competência: 4 (Avaliar papel das revoluções)
+  Nível TRI: Difícil
+  Texto-base: Trecho da Declaração dos Direitos do Homem e do Cidadão.
+
+🌍 Geografia
+- 2023 | Azul | Q28 | Tema: Geopolítica → Guerra Fria
+  Competência: 2 (Analisar transformações no espaço geográfico)
+  Nível TRI: Médio
+  Texto-base: Mapa da divisão do mundo em blocos.
+
+- 2021 | Azul | Q32 | Tema: Meio Ambiente → Desmatamento Amazônico
+  Competência: 6 (Compreender impactos socioambientais)
+  Nível TRI: Fácil
+  Texto-base: Gráfico de taxa de desmatamento.
+
+📖 Filosofia
+- 2017 | Amarela | Q42 | Tema: Filosofia Moderna → Contratualismo (Hobbes)
+  Competência: 5 (Relacionar conceitos de política e sociedade)
+  Nível TRI: Médio
+  Texto-base: Trecho do Leviatã.
+
+👥 Sociologia
+- 2016 | Amarela | Q40 | Tema: Trabalho e Capitalismo (Marx)
+  Competência: 3 (Analisar conflitos sociais)
+  Nível TRI: Médio
+  Texto-base: Excerto sobre alienação do trabalho.
+
+---
+
+📌 BLOCO 4 — BNCC (Ciências Humanas e Gerais)
+
+Competências Gerais da Educação Básica:
+- Pensamento crítico e científico.
+- Argumentação com base em fatos.
+- Consciência histórica e cultural.
+- Empatia e respeito à diversidade.
+- Responsabilidade socioambiental.
+- Exercício pleno da cidadania.
+
+Competências Específicas de Ciências Humanas (Ensino Médio):
+1. Analisar processos históricos e geográficos para compreender transformações sociais, políticas e culturais.
+2. Valorizar a diversidade cultural, os direitos humanos e a democracia.
+3. Debater problemas contemporâneos de forma fundamentada e crítica.
+4. Interpretar e produzir discursos a partir de diferentes fontes (mapas, textos, gráficos, obras de arte).
+5. Propor soluções e ações coletivas diante de questões sociais, ambientais e éticas.
+6. Reconhecer identidades, culturas e diferentes visões de mundo, respeitando a diversidade.
+
+---
 `;
+
 
 // ---------- Conteúdo didático ----------
 async function gerarConteudoHTML({ materia, topico, subtopico }) {

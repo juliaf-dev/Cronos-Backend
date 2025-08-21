@@ -1,30 +1,30 @@
 // src/controllers/questoesController.js
-const pool = require("../config/db"); // ✅ direto, sem getPool
+const pool = require("../config/db");
 const { gerarQuestoesComContexto } = require("../services/ia/geminiService");
 const { ok, error } = require("../utils/http");
 
-// ----------------------
-// Função auxiliar (uso interno no backend)
-// ----------------------
+/**
+ * Função auxiliar: gera e salva uma questão no banco
+ */
 async function generateOne({ conteudo_id, dificuldade = "medio" }) {
   try {
-    // Buscar contexto
+    // Buscar contexto do conteúdo
     const [[conteudo]] = await pool.execute(
       `SELECT c.id, c.titulo, c.texto, c.texto_html,
               m.id AS materia_id, m.nome AS materia,
               t.id AS topico_id, t.nome AS topico,
               s.id AS subtopico_id, s.nome AS subtopico
-       FROM conteudos c
-       JOIN materias m ON m.id = c.materia_id
-       JOIN topicos t ON t.id = c.topico_id
-       JOIN subtopicos s ON s.id = c.subtopico_id
-       WHERE c.id = ?`,
+         FROM conteudos c
+         JOIN materias m ON m.id = c.materia_id
+         JOIN topicos t ON t.id = c.topico_id
+         JOIN subtopicos s ON s.id = c.subtopico_id
+        WHERE c.id = ?`,
       [conteudo_id]
     );
 
     if (!conteudo) throw new Error("Conteúdo não encontrado");
 
-    // IA gera apenas 1 questão (em formato JSON)
+    // IA retorna questão em JSON
     const iaText = await gerarQuestoesComContexto({
       materia: conteudo.materia,
       topico: conteudo.topico,
@@ -51,7 +51,7 @@ async function generateOne({ conteudo_id, dificuldade = "medio" }) {
     // Salvar questão no banco
     const [r] = await pool.execute(
       `INSERT INTO questoes 
-       (materia_id, topico_id, subtopico_id, conteudo_id, enunciado, alternativa_correta, explicacao) 
+         (materia_id, topico_id, subtopico_id, conteudo_id, enunciado, alternativa_correta, explicacao) 
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         conteudo.materia_id,
@@ -65,10 +65,10 @@ async function generateOne({ conteudo_id, dificuldade = "medio" }) {
     );
     const questaoId = r.insertId;
 
-    // Salvar alternativas
+    // Salvar alternativas (já vêm no JSON da IA)
     for (const alt of q.alternativas) {
       if (!alt) continue;
-      const letra = alt.trim().charAt(0); // "A", "B", ...
+      const letra = alt.trim().charAt(0).toUpperCase(); // "A", "B", ...
       const texto = alt.replace(/^[A-E]\)\s*/, "").trim(); // remove "A) "
       await pool.execute(
         "INSERT INTO alternativas (questao_id, letra, texto) VALUES (?, ?, ?)",
@@ -89,9 +89,9 @@ async function generateOne({ conteudo_id, dificuldade = "medio" }) {
   }
 }
 
-// ----------------------
-// Rota HTTP → gerar várias de uma vez
-// ----------------------
+/**
+ * Rota HTTP → gerar várias questões de uma vez
+ */
 async function generate(req, res) {
   try {
     const { conteudo_id, quantidade = 5, dificuldade = "medio" } = req.body;
