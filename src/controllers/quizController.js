@@ -1,6 +1,5 @@
 // src/controllers/quizController.js
 const pool = require("../config/db");
-const { generateOne } = require("./questoesController");
 
 // ----------------------
 // Util: carregar alternativas de várias questões
@@ -72,7 +71,7 @@ async function criarSessao(req, res) {
 
       altMap = await carregarAlternativasMap(questoes.map((q) => q.id));
     } else {
-      // Criar quiz novo
+      // Criar quiz novo a partir de questões já cadastradas
       let [questoesSelecionadas] = await pool.query(
         `SELECT q.id, q.enunciado, q.materia_id
            FROM questoes q
@@ -89,22 +88,6 @@ async function criarSessao(req, res) {
       questoesSelecionadas = questoesSelecionadas.filter(
         (q) => altTemp.has(q.id) && altTemp.get(q.id).length === 5
       );
-
-      // Completar com IA se faltar
-      while (questoesSelecionadas.length < 10) {
-        try {
-          const nova = await generateOne({ conteudo_id, dificuldade: "medio" });
-          if (!nova) break;
-          questoesSelecionadas.push({
-            id: nova.id,
-            enunciado: nova.enunciado,
-            materia_id: questoesSelecionadas[0]?.materia_id || nova.materia_id,
-          });
-        } catch (err) {
-          console.error("⚠️ Falha ao gerar questão via IA:", err.message);
-          break;
-        }
-      }
 
       // Garante mínimo de 10
       if (questoesSelecionadas.length < 10) {
