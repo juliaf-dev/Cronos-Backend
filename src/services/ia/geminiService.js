@@ -272,7 +272,8 @@ Crie exatamente 10 questões no estilo ENEM para uso em FLASHCARDS, baseadas em:
 
 ⚠️ Regras obrigatórias:
 - Cada questão deve se basear exclusivamente no texto de referência.
-- Cada enunciado deve ser independente (não dependa das alternativas para ser entendido).
+- Cada enunciado deve ser independente (não dependa das alternativas para ser entendido nem mencionar diretamente o texto).
+- cada enunciado deve ser independente (não pode mencionar diretamente o texto).
 - As alternativas devem estar em ordem alfabética: A), B), C), D), E).
 - A alternativa correta deve variar entre A–E (não repita a mesma letra em sequência).
 - O JSON deve ser válido, parseável e pronto para uso no backend.
