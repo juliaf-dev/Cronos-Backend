@@ -19,7 +19,11 @@ async function carregarAlternativasMap(questaoIds) {
 
   for (const a of alts) {
     if (!altMap.has(a.questao_id)) altMap.set(a.questao_id, []);
-    altMap.get(a.questao_id).push(a);
+    altMap.get(a.questao_id).push({
+      id: a.id,
+      letra: (a.letra || "").toUpperCase(),
+      texto: a.texto || "",
+    });
   }
   return altMap;
 }
@@ -32,10 +36,16 @@ async function criarSessao(req, res) {
     const usuario_id = req.user?.id || req.body.usuario_id;
     const { conteudo_id } = req.body;
 
-    if (!usuario_id || !conteudo_id) {
+    if (!usuario_id) {
+      return res.status(401).json({
+        ok: false,
+        message: "Usuário não autenticado (usuario_id ausente).",
+      });
+    }
+    if (!conteudo_id) {
       return res.status(400).json({
         ok: false,
-        message: "usuario_id e conteudo_id são obrigatórios",
+        message: "conteudo_id é obrigatório",
       });
     }
 
@@ -88,8 +98,7 @@ async function criarSessao(req, res) {
           questoesSelecionadas.push({
             id: nova.id,
             enunciado: nova.enunciado,
-            materia_id:
-              questoesSelecionadas[0]?.materia_id || nova.materia_id,
+            materia_id: questoesSelecionadas[0]?.materia_id || nova.materia_id,
           });
         } catch (err) {
           console.error("⚠️ Falha ao gerar questão via IA:", err.message);
@@ -134,18 +143,23 @@ async function criarSessao(req, res) {
       );
     }
 
-    // Retornar questões com alternativas
+    // Retornar questões com alternativas (garantindo enunciado e explicação)
     const questoesComAlternativas = await Promise.all(
       questoes.map(async (q) => {
-        const [[corretaRow]] = await pool.execute(
-          `SELECT alternativa_correta FROM questoes WHERE id = ? LIMIT 1`,
+        const [[row]] = await pool.execute(
+          `SELECT enunciado, alternativa_correta, explicacao
+             FROM questoes
+            WHERE id = ?
+            LIMIT 1`,
           [q.id]
         );
+
         return {
           id: q.id,
-          enunciado: q.enunciado,
+          enunciado: (q.enunciado || row?.enunciado || "").trim() || "(Enunciado indisponível)",
           materia_id: q.materia_id,
-          alternativa_correta: corretaRow?.alternativa_correta || null,
+          alternativa_correta: row?.alternativa_correta || null,
+          explicacao: row?.explicacao || null,
           alternativas: altMap.get(q.id) || [],
         };
       })
@@ -157,7 +171,11 @@ async function criarSessao(req, res) {
     });
   } catch (err) {
     console.error("❌ Erro ao criar sessão de quiz:", err);
-    return res.status(500).json({ ok: false, error: err.message });
+    return res.status(500).json({
+      ok: false,
+      message: "Erro interno ao criar quiz",
+      error: err.message,
+    });
   }
 }
 
@@ -233,7 +251,11 @@ async function responder(req, res) {
     });
   } catch (err) {
     console.error("❌ Erro ao responder questão:", err);
-    return res.status(500).json({ ok: false, error: err.message });
+    return res.status(500).json({
+      ok: false,
+      message: "Erro interno ao responder",
+      error: err.message,
+    });
   }
 }
 
@@ -258,8 +280,6 @@ async function finalizar(req, res) {
       [usuario_id, quiz_id]
     );
 
-    console.log("📊 Finalizar stats:", tot);
-
     if (tot.total !== 10) {
       return res.status(400).json({
         ok: false,
@@ -280,8 +300,6 @@ async function finalizar(req, res) {
       [usuario_id, quiz_id]
     );
 
-    console.log("✅ Finalizar resultado:", agg);
-
     return res.json({
       ok: true,
       quiz_id,
@@ -291,7 +309,11 @@ async function finalizar(req, res) {
     });
   } catch (err) {
     console.error("❌ Erro ao finalizar quiz:", err);
-    return res.status(500).json({ ok: false, error: err.message });
+    return res.status(500).json({
+      ok: false,
+      message: "Erro interno ao finalizar quiz",
+      error: err.message,
+    });
   }
 }
 
@@ -302,6 +324,13 @@ async function resumo(req, res) {
   try {
     const usuario_id = req.user?.id || req.query.usuario_id;
     const { quiz_id } = req.params;
+
+    if (!usuario_id) {
+      return res.status(401).json({
+        ok: false,
+        message: "Usuário não autenticado",
+      });
+    }
 
     const [itens] = await pool.execute(
       `SELECT qr.questao_id, qr.correta,
@@ -318,7 +347,11 @@ async function resumo(req, res) {
     return res.json({ ok: true, quiz_id, itens });
   } catch (err) {
     console.error("❌ Erro ao carregar resumo:", err);
-    return res.status(500).json({ ok: false, error: err.message });
+    return res.status(500).json({
+      ok: false,
+      message: "Erro interno ao carregar resumo",
+      error: err.message,
+    });
   }
 }
 
@@ -348,8 +381,13 @@ async function historico(req, res) {
     return res.json({ ok: true, quizzes: rows });
   } catch (err) {
     console.error("❌ Erro ao carregar histórico:", err);
-    return res.status(500).json({ ok: false, error: err.message });
+    return res.status(500).json({
+      ok: false,
+      message: "Erro interno ao carregar histórico",
+      error: err.message,
+    });
   }
 }
 
 module.exports = { criarSessao, responder, finalizar, resumo, historico };
+
