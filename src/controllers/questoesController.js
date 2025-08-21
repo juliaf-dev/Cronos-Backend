@@ -24,7 +24,7 @@ async function generateOne({ conteudo_id, dificuldade = "medio" }) {
 
     if (!conteudo) throw new Error("Conteúdo não encontrado");
 
-    // IA gera apenas 1 questão
+    // IA gera apenas 1 questão (em formato JSON)
     const iaText = await gerarQuestoesComContexto({
       materia: conteudo.materia,
       topico: conteudo.topico,
@@ -34,29 +34,21 @@ async function generateOne({ conteudo_id, dificuldade = "medio" }) {
       dificuldade,
     });
 
-    const questaoRaw = iaText.split(/Q\)/).filter((q) => q.trim())[0];
-    if (!questaoRaw) throw new Error("IA não retornou questão válida");
+    let questoesJson;
+    try {
+      questoesJson = JSON.parse(iaText);
+    } catch (err) {
+      console.error("❌ Erro ao fazer parse do JSON da IA:", iaText);
+      throw new Error("IA não retornou JSON válido");
+    }
 
-    const enunciado =
-      (questaoRaw.match(/ENUNCIADO:\s*(.+?)(?=\n[A-E]\))/s) || [])[1]?.trim() || "";
+    const q = Array.isArray(questoesJson) ? questoesJson[0] : questoesJson;
 
-    const alternativas = ["A", "B", "C", "D", "E"].map((letra) => {
-      const regex = new RegExp(
-        `${letra}\\)\\s*(.+?)(?=\\n[A-E]\\)|\\nGABARITO:|$)`,
-        "s"
-      );
-      return {
-        letra,
-        texto: (questaoRaw.match(regex) || [])[1]?.trim() || "",
-      };
-    });
+    if (!q?.pergunta || !q?.alternativas || !q?.resposta_correta) {
+      throw new Error("Questão gerada está incompleta");
+    }
 
-    const gabarito =
-      (questaoRaw.match(/GABARITO:\s*([A-E])/) || [])[1] || "";
-    const explicacao =
-      (questaoRaw.match(/EXPLICAÇÃO:\s*(.+)/s) || [])[1]?.trim() || "";
-
-    // Salvar no banco
+    // Salvar questão no banco
     const [r] = await pool.execute(
       `INSERT INTO questoes 
        (materia_id, topico_id, subtopico_id, conteudo_id, enunciado, alternativa_correta, explicacao) 
@@ -66,28 +58,30 @@ async function generateOne({ conteudo_id, dificuldade = "medio" }) {
         conteudo.topico_id,
         conteudo.subtopico_id,
         conteudo.id,
-        enunciado,
-        gabarito,
-        explicacao,
+        q.pergunta,
+        q.resposta_correta,
+        q.explicacao || "",
       ]
     );
     const questaoId = r.insertId;
 
-    for (const alt of alternativas) {
-      if (alt.texto) {
-        await pool.execute(
-          "INSERT INTO alternativas (questao_id, letra, texto) VALUES (?, ?, ?)",
-          [questaoId, alt.letra, alt.texto]
-        );
-      }
+    // Salvar alternativas
+    for (const alt of q.alternativas) {
+      if (!alt) continue;
+      const letra = alt.trim().charAt(0); // "A", "B", ...
+      const texto = alt.replace(/^[A-E]\)\s*/, "").trim(); // remove "A) "
+      await pool.execute(
+        "INSERT INTO alternativas (questao_id, letra, texto) VALUES (?, ?, ?)",
+        [questaoId, letra, texto]
+      );
     }
 
     return {
       id: questaoId,
-      enunciado,
-      alternativas,
-      gabarito,
-      explicacao,
+      enunciado: q.pergunta,
+      alternativas: q.alternativas,
+      gabarito: q.resposta_correta,
+      explicacao: q.explicacao,
     };
   } catch (err) {
     console.error("❌ Erro em questoesController.generateOne:", err);
