@@ -98,90 +98,75 @@ Classificação de dificuldade (estimativa didática):
 ---
 
 📌 BLOCO 2 — Matriz de Referência ENEM (Ciências Humanas)
-Competência 1 – Compreender os elementos culturais que constituem as identidades.
-  H1: Interpretar historicamente e/ou geograficamente fontes documentais.
-  H2: Analisar a produção da memória pelas sociedades humanas.
-  H3: Associar manifestações culturais ao seu contexto histórico e geográfico.
-  H4: Comparar pontos de vista sobre identidades sociais e culturais.
-
-Competência 2 – Compreender as transformações dos espaços geográficos.
-  H5: Analisar interações homem-natureza.
-  H6: Interpretar diferentes representações espaciais.
-  H7: Identificar os processos de ocupação dos espaços.
-  H8: Relacionar usos de tecnologias ao espaço geográfico.
-
-Competência 3 – Entender a produção das relações sociais e culturais.
-  H9: Compreender a cidadania como construção histórica.
-  H10: Identificar formas de organização social.
-  H11: Analisar conflitos sociais em diferentes épocas.
-  H12: Relacionar organização política ao espaço.
-
-Competência 4 – Compreender os processos históricos.
-  H13: Identificar registros históricos em diferentes fontes.
-  H14: Reconhecer diferentes formas de poder e dominação.
-  H15: Relacionar acontecimentos históricos e suas consequências.
-  H16: Avaliar o papel das revoluções, guerras e transformações sociais.
-
-Competência 5 – Utilizar conceitos das ciências humanas para compreender a realidade.
-  H17: Analisar representações gráficas e cartográficas.
-  H18: Interpretar índices estatísticos.
-  H19: Relacionar conceitos de política, economia, cultura e sociedade.
-  H20: Avaliar propostas de intervenção na realidade.
-
-Competência 6 – Compreender a relação entre produção e espaço.
-  H21: Identificar formas de organização do trabalho.
-  H22: Analisar transformações nos sistemas produtivos.
-  H23: Relacionar processos sociais e econômicos às tecnologias.
-  H24: Compreender impactos socioambientais da produção.
-
-Competência 7 – Entender a cidadania e os direitos humanos.
-  H25: Identificar manifestações de cidadania.
-  H26: Analisar conquistas e lutas sociais.
-  H27: Reconhecer desigualdades sociais.
-  H28: Avaliar ações de participação social.
+(Competência 1 a 7 + H1 a H28 — já detalhadas)
 
 ---
 
 📌 BLOCO 3 — Histórico de Questões (amostra organizada)
 
 📖 História
-- 2022 | Azul | Q45 | Tema: Brasil República → Era Vargas
-  Competência: 4 (Relacionar acontecimentos históricos e suas consequências)
-  Nível TRI: Médio
-  Texto-base: Excerto de discurso de Vargas sobre a CLT.
-
-- 2019 | Amarela | Q38 | Tema: Idade Moderna → Revolução Francesa
-  Competência: 4 (Avaliar papel das revoluções)
-  Nível TRI: Difícil
-  Texto-base: Trecho da Declaração dos Direitos do Homem e do Cidadão.
+- 2015 | Amarela | Q36 | Brasil Colônia → Escravidão
+  Competência: 4 (Identificar registros históricos) | Dificuldade: Fácil
+- 2016 | Amarela | Q42 | Idade Média → Feudalismo
+  Competência: 4 (Relacionar acontecimentos históricos) | Dificuldade: Médio
+- 2017 | Amarela | Q40 | Idade Moderna → Reforma Protestante
+  Competência: 4 (Avaliar transformações sociais) | Dificuldade: Médio
+- 2018 | Azul | Q43 | Brasil → Independência (1822)
+  Competência: 3 (Cidadania como construção histórica) | Dificuldade: Médio
+- 2019 | Amarela | Q38 | Idade Moderna → Revolução Francesa
+  Competência: 4 (Avaliar papel das revoluções) | Dificuldade: Difícil
+- 2020 | Azul | Q41 | Brasil República → Ditadura Militar
+  Competência: 7 (Cidadania) | Dificuldade: Difícil
+- 2022 | Azul | Q45 | Brasil República → Era Vargas
+  Competência: 4 (Relacionar acontecimentos históricos) | Dificuldade: Médio
 
 🌍 Geografia
-- 2023 | Azul | Q28 | Tema: Geopolítica → Guerra Fria
-  Competência: 2 (Analisar transformações no espaço geográfico)
-  Nível TRI: Médio
-  Texto-base: Mapa da divisão do mundo em blocos.
-
-- 2021 | Azul | Q32 | Tema: Meio Ambiente → Desmatamento Amazônico
-  Competência: 6 (Compreender impactos socioambientais)
-  Nível TRI: Fácil
-  Texto-base: Gráfico de taxa de desmatamento.
+- 2015 | Amarela | Q31 | Clima do Brasil
+  Competência: 2 (Interações homem-natureza) | Dificuldade: Fácil
+- 2016 | Azul | Q29 | Urbanização → Metrópoles
+  Competência: 2 (Representações espaciais) | Dificuldade: Médio
+- 2017 | Azul | Q34 | Geopolítica → Guerra Fria
+  Competência: 2 (Tecnologia e espaço) | Dificuldade: Médio
+- 2018 | Amarela | Q28 | Meio Ambiente → Recursos Hídricos
+  Competência: 6 (Impactos socioambientais) | Dificuldade: Fácil
+- 2019 | Azul | Q30 | Globalização → Blocos Econômicos
+  Competência: 5 (Política e economia) | Dificuldade: Médio
+- 2021 | Azul | Q32 | Meio Ambiente → Desmatamento Amazônico
+  Competência: 6 (Impactos socioambientais) | Dificuldade: Fácil
+- 2023 | Azul | Q28 | Geopolítica → Oriente Médio
+  Competência: 2 (Transformações no espaço) | Dificuldade: Difícil
 
 📖 Filosofia
-- 2017 | Amarela | Q42 | Tema: Filosofia Moderna → Contratualismo (Hobbes)
-  Competência: 5 (Relacionar conceitos de política e sociedade)
-  Nível TRI: Médio
-  Texto-base: Trecho do Leviatã.
+- 2015 | Amarela | Q47 | Aristóteles (Ética)
+  Competência: 5 (Política e sociedade) | Dificuldade: Médio
+- 2016 | Amarela | Q44 | Descartes (Racionalismo)
+  Competência: 5 (Epistemologia) | Dificuldade: Médio
+- 2017 | Amarela | Q42 | Hobbes (Contratualismo)
+  Competência: 5 (Política e sociedade) | Dificuldade: Médio
+- 2019 | Azul | Q46 | Kant (Iluminismo)
+  Competência: 5 (Propostas de intervenção) | Dificuldade: Difícil
+- 2020 | Azul | Q47 | Nietzsche (Contemporânea)
+  Competência: 5 (Cultura e sociedade) | Dificuldade: Difícil
 
 👥 Sociologia
-- 2016 | Amarela | Q40 | Tema: Trabalho e Capitalismo (Marx)
-  Competência: 3 (Analisar conflitos sociais)
-  Nível TRI: Médio
-  Texto-base: Excerto sobre alienação do trabalho.
+- 2015 | Amarela | Q50 | Trabalho e Industrialização
+  Competência: 3 (Conflitos sociais) | Dificuldade: Médio
+- 2016 | Amarela | Q40 | Marx → Capitalismo
+  Competência: 3 (Cidadania como construção histórica) | Dificuldade: Médio
+- 2017 | Azul | Q49 | Movimentos Sociais → Feminismo
+  Competência: 7 (Conquistas e lutas sociais) | Dificuldade: Fácil
+- 2018 | Azul | Q50 | Desigualdade Social → Renda e Pobreza
+  Competência: 7 (Reconhecer desigualdades) | Dificuldade: Médio
+- 2019 | Azul | Q48 | Globalização → Sociedade de Consumo
+  Competência: 7 (Participação social) | Dificuldade: Médio
+- 2020 | Amarela | Q49 | Cidadania → Direitos Humanos
+  Competência: 7 (Manifestações de cidadania) | Dificuldade: Fácil
+- 2022 | Azul | Q47 | Movimentos Sociais → Questão Indígena
+  Competência: 7 (Conquistas e lutas sociais) | Dificuldade: Difícil
 
 ---
 
 📌 BLOCO 4 — BNCC (Ciências Humanas e Gerais)
-
 Competências Gerais da Educação Básica:
 - Pensamento crítico e científico.
 - Argumentação com base em fatos.
@@ -191,15 +176,14 @@ Competências Gerais da Educação Básica:
 - Exercício pleno da cidadania.
 
 Competências Específicas de Ciências Humanas (Ensino Médio):
-1. Analisar processos históricos e geográficos para compreender transformações sociais, políticas e culturais.
-2. Valorizar a diversidade cultural, os direitos humanos e a democracia.
-3. Debater problemas contemporâneos de forma fundamentada e crítica.
-4. Interpretar e produzir discursos a partir de diferentes fontes (mapas, textos, gráficos, obras de arte).
-5. Propor soluções e ações coletivas diante de questões sociais, ambientais e éticas.
-6. Reconhecer identidades, culturas e diferentes visões de mundo, respeitando a diversidade.
-
----
+1. Analisar processos históricos e geográficos.
+2. Valorizar diversidade cultural, direitos humanos e democracia.
+3. Debater problemas contemporâneos de forma crítica.
+4. Interpretar e produzir discursos a partir de diferentes fontes.
+5. Propor soluções coletivas para questões sociais, ambientais e éticas.
+6. Reconhecer identidades, culturas e diferentes visões de mundo.
 `;
+
 
 
 // ---------- Conteúdo didático ----------

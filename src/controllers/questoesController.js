@@ -24,8 +24,8 @@ async function generateOne({ conteudo_id, dificuldade = "medio" }) {
 
     if (!conteudo) throw new Error("Conteúdo não encontrado");
 
-    // IA retorna questão em JSON
-    const iaText = await gerarQuestoesComContexto({
+    // IA retorna questão em JSON (pode vir com ```json ... ```)
+    let iaText = await gerarQuestoesComContexto({
       materia: conteudo.materia,
       topico: conteudo.topico,
       subtopico: conteudo.subtopico,
@@ -34,9 +34,19 @@ async function generateOne({ conteudo_id, dificuldade = "medio" }) {
       dificuldade,
     });
 
+    // Limpar blocos de markdown
+    iaText = iaText.trim().replace(/```json/g, "").replace(/```/g, "").trim();
+
+    // Pegar apenas o primeiro array JSON válido
+    const match = iaText.match(/\[[\s\S]*\]/);
+    if (!match) {
+      console.error("❌ Resposta IA inesperada:", iaText);
+      throw new Error("IA não retornou JSON válido");
+    }
+
     let questoesJson;
     try {
-      questoesJson = JSON.parse(iaText);
+      questoesJson = JSON.parse(match[0]);
     } catch (err) {
       console.error("❌ Erro ao fazer parse do JSON da IA:", iaText);
       throw new Error("IA não retornou JSON válido");
@@ -65,7 +75,7 @@ async function generateOne({ conteudo_id, dificuldade = "medio" }) {
     );
     const questaoId = r.insertId;
 
-    // Salvar alternativas (já vêm no JSON da IA)
+    // Salvar alternativas
     for (const alt of q.alternativas) {
       if (!alt) continue;
       const letra = alt.trim().charAt(0).toUpperCase(); // "A", "B", ...
