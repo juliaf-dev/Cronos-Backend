@@ -71,7 +71,7 @@ async function criarSessao(req, res) {
 
     let quizId, questoes, altMap, materia_id;
 
-    // Verifica quiz existente
+    // 🔹 Verifica se já existe quiz para este conteúdo (compartilhado entre todos usuários)
     const [[quizExistente]] = await pool.execute(
       `SELECT id, materia_id FROM quizzes WHERE conteudo_id = ? LIMIT 1`,
       [conteudo_id]
@@ -91,7 +91,7 @@ async function criarSessao(req, res) {
       );
       altMap = await carregarAlternativasMap(questoes.map(q => q.id));
     } else {
-      // Buscar questões do banco
+      // 🔹 Tenta buscar questões já existentes no banco
       let [questoesSelecionadas] = await pool.query(
         `SELECT q.id, q.enunciado, q.materia_id
            FROM questoes q
@@ -106,11 +106,10 @@ async function criarSessao(req, res) {
         q => altTemp.has(q.id) && altTemp.get(q.id).length === 5
       );
 
-      // Se não houver 10, gerar via IA
+      // 🔹 Se não houver 10 válidas, gerar via IA
       if (questoesSelecionadas.length < 10) {
         console.log("⚡ Gerando questões via Gemini...");
 
-        // 🔹 Buscar conteúdo se não foi enviado no body
         if (!conteudo) {
           const [[rowConteudo]] = await pool.execute(
             `SELECT texto_html, texto FROM conteudos WHERE id = ? LIMIT 1`,
@@ -184,7 +183,7 @@ async function criarSessao(req, res) {
       }
     }
 
-    // Criar registros de resultados
+    // 🔹 Criar (se ainda não existir) registros de resultados por usuário
     for (const q of questoes) {
       await pool.execute(
         `INSERT IGNORE INTO quiz_resultados (usuario_id, quiz_id, questao_id, correta, respondido_em)
@@ -193,7 +192,7 @@ async function criarSessao(req, res) {
       );
     }
 
-    // Montar retorno
+    // 🔹 Montar retorno
     const questoesComAlternativas = await Promise.all(
       questoes.map(async q => {
         const [[row]] = await pool.execute(
