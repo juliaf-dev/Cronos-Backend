@@ -73,6 +73,21 @@ async function generateOne({ conteudo_id, dificuldade = "medio" }) {
       return null;
     }
 
+    // 🔹 Sanitizar enunciado
+    let enunciado = String(q.pergunta)
+      .replace(/^PERGUNTA[:\-]?\s*/i, "")
+      .trim();
+
+    // 🔹 Normalizar resposta correta
+    const resposta_correta = q.resposta_correta
+      ? q.resposta_correta.trim().charAt(0).toUpperCase()
+      : null;
+
+    // 🔹 Sanitizar explicação
+    let explicacao = q.explicacao
+      ? String(q.explicacao).replace(/^EXPLICAÇÃO[:\-]?\s*/i, "").trim()
+      : "";
+
     // Salvar questão no banco
     const [r] = await pool.execute(
       `INSERT INTO questoes 
@@ -83,18 +98,24 @@ async function generateOne({ conteudo_id, dificuldade = "medio" }) {
         conteudo.topico_id,
         conteudo.subtopico_id,
         conteudo.id,
-        q.pergunta,
-        q.resposta_correta,
-        q.explicacao || "",
+        enunciado,
+        resposta_correta,
+        explicacao,
       ]
     );
     const questaoId = r.insertId;
 
-    // Salvar alternativas
+    // 🔹 Salvar alternativas (limpando lixo)
     for (const alt of q.alternativas) {
       if (!alt) continue;
       const letra = alt.trim().charAt(0).toUpperCase(); // "A", "B", ...
-      const texto = alt.replace(/^[A-E]\)\s*/, "").trim(); // remove "A) "
+      let texto = alt.replace(/^[A-E]\)\s*/i, "").trim();
+
+      // Ignorar linhas que contenham gabarito/explicação
+      if (/RESPOSTA\s+CORRETA/i.test(texto) || /EXPLICAÇÃO/i.test(texto)) {
+        continue;
+      }
+
       await pool.execute(
         "INSERT INTO alternativas (questao_id, letra, texto) VALUES (?, ?, ?)",
         [questaoId, letra, texto]
@@ -103,10 +124,10 @@ async function generateOne({ conteudo_id, dificuldade = "medio" }) {
 
     return {
       id: questaoId,
-      enunciado: q.pergunta,
+      enunciado,
       alternativas: q.alternativas,
-      gabarito: q.resposta_correta,
-      explicacao: q.explicacao,
+      gabarito: resposta_correta,
+      explicacao,
     };
   } catch (err) {
     console.error("❌ Erro inesperado em questoesController.generateOne:", err);
@@ -144,4 +165,3 @@ async function generate(req, res) {
 }
 
 module.exports = { generate, generateOne };
-
