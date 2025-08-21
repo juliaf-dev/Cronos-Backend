@@ -190,7 +190,7 @@ Competências Específicas de Ciências Humanas (Ensino Médio):
 async function gerarConteudoHTML({ materia, topico, subtopico }) {
   const model = "gemini-1.5-flash";
 
-  const prompt = `Gere um resumo didático em HTML estruturado (com <h2>, <p>, <ul>, <li>) 
+  const prompt = `Gere um resumo didático sem titulo inicial, em HTML estruturado (com <h2>, <p>, <ul>, <li>) 
 para auxiliar no estudo de ENEM, vestibulares e concursos.
 
 Tema:
