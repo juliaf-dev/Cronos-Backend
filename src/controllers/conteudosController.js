@@ -2,6 +2,21 @@ const pool = require('../config/db');
 const { ok } = require('../utils/http');
 const { gerarConteudoHTML } = require('../services/ia/geminiService');
 
+// 🔹 Função auxiliar de sanitização
+function sanitizeHTML(texto) {
+  let clean = String(texto || "")
+    .replace(/```html|```/gi, "")        // remove blocos de markdown
+    .replace(/<h1[^>]*>.*?<\/h1>/gi, "") // remove qualquer <h1>
+    .trim();
+
+  // Se não tiver nenhuma tag básica (<p>, <h2>, <ul>, <li>), envolve em <p>
+  if (!/(<p>|<h2>|<ul>|<li>)/i.test(clean)) {
+    clean = `<p>${clean}</p>`;
+  }
+
+  return clean;
+}
+
 // Criar conteúdo manualmente (apenas admin)
 async function create(req, res) {
   try {
@@ -23,19 +38,19 @@ async function create(req, res) {
       return res.status(404).json({ ok: false, message: 'Matéria, tópico ou subtopico não encontrados' });
     }
 
-    // Geração com IA
+    // 🔹 Geração com IA
     let texto = await gerarConteudoHTML({
       materia: materia.nome,
       topico: topico.nome,
       subtopico: subtopico.nome
     });
 
-    // Fallback → evita crash se IA não responder
     if (!texto) {
       console.warn("⚠️ gerarConteudoHTML retornou vazio. Usando fallback.");
       texto = "Conteúdo temporariamente indisponível.";
     }
-    const conteudo = String(texto);
+
+    texto = sanitizeHTML(texto);
 
     // Salvar
     const [r] = await pool.execute(
@@ -47,9 +62,9 @@ async function create(req, res) {
         materia.id,
         topico.id,
         subtopico.id,
-        subtopico.nome,
-        conteudo,
-        conteudo,
+        subtopico.nome, // título vem do subtópico, não da IA
+        texto,
+        texto,
         1,
         'Gemini API',
         1,
@@ -60,7 +75,8 @@ async function create(req, res) {
     return ok(res, {
       id: r.insertId,
       titulo: subtopico.nome,
-      body: conteudo,
+      body: texto,
+      gerado_via_ia: true,
       materia_id: materia.id,
       topico_id: topico.id,
       subtopico_id: subtopico.id,
@@ -83,9 +99,9 @@ async function getOrGenerate(req, res) {
       return res.status(400).json({ ok: false, message: "subtopicoId obrigatório" });
     }
 
-    // Verifica se já existe
+    // 🔹 Verifica se já existe
     const [rows] = await pool.execute(
-      `SELECT c.id, c.titulo, c.texto_html AS body, 
+      `SELECT c.id, c.titulo, c.texto_html AS body, c.gerado_via_ia,
               m.id AS materia_id, t.id AS topico_id, s.id AS subtopico_id,
               m.nome AS materia_nome, t.nome AS topico_nome, s.nome AS subtopico_nome
          FROM conteudos c
@@ -102,7 +118,7 @@ async function getOrGenerate(req, res) {
       return ok(res, rows[0]);
     }
 
-    // Se não existe → buscar dados corretos do subtópico
+    // 🔹 Buscar dados corretos do subtópico
     const [[info]] = await pool.execute(
       `SELECT s.id AS subtopico_id, s.nome AS subtopico_nome,
               t.id AS topico_id, t.nome AS topico_nome,
@@ -118,7 +134,7 @@ async function getOrGenerate(req, res) {
       return res.status(404).json({ ok: false, message: "Matéria, tópico ou subtópico não encontrados" });
     }
 
-    // Gerar via IA
+    // 🔹 Gerar via IA
     let texto = await gerarConteudoHTML({
       materia: info.materia_nome,
       topico: info.topico_nome,
@@ -129,7 +145,8 @@ async function getOrGenerate(req, res) {
       console.warn("⚠️ gerarConteudoHTML retornou vazio em getOrGenerate. Usando fallback.");
       texto = "Conteúdo temporariamente indisponível.";
     }
-    const conteudo = String(texto);
+
+    texto = sanitizeHTML(texto);
 
     // Salvar no banco
     const [r] = await pool.execute(
@@ -142,8 +159,8 @@ async function getOrGenerate(req, res) {
         info.topico_id,
         info.subtopico_id,
         info.subtopico_nome,
-        conteudo,
-        conteudo,
+        texto,
+        texto,
         1,
         "Gemini API",
         1,
@@ -154,7 +171,8 @@ async function getOrGenerate(req, res) {
     return ok(res, {
       id: r.insertId,
       titulo: info.subtopico_nome,
-      body: conteudo,
+      body: texto,
+      gerado_via_ia: true,
       materia_id: info.materia_id,
       topico_id: info.topico_id,
       subtopico_id: info.subtopico_id,
@@ -173,7 +191,7 @@ async function update(req, res) {
   const { id } = req.params;
   const { texto } = req.body;
 
-  const conteudo = String(texto || "");
+  const conteudo = sanitizeHTML(texto);
 
   await pool.execute(
     'UPDATE conteudos SET texto = ?, texto_html = ?, atualizado_em = NOW() WHERE id = ?',

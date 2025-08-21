@@ -4,10 +4,83 @@ const { gerarQuestoesComContexto } = require("../services/ia/geminiService");
 const { ok, error } = require("../utils/http");
 
 /**
- * Função auxiliar: gera e salva uma questão no banco
+ * Função auxiliar: sanitizar e salvar 1 questão no banco
  */
-async function generateOne({ conteudo_id, dificuldade = "medio" }) {
+async function salvarQuestao(conteudo, q) {
+  if (!q?.pergunta || !q?.alternativas || !q?.resposta_correta) {
+    console.error("❌ Questão gerada está incompleta:", q);
+    return null;
+  }
+
+  // 🔹 Sanitizar enunciado (flashcard pronto para virar pergunta)
+  let enunciado = String(q.pergunta)
+    .replace(/^PERGUNTA[:\-]?\s*/i, "")
+    .replace(/RESPOSTA\s+CORRETA.*/i, "")
+    .replace(/EXPLICAÇÃO.*/i, "")
+    .trim();
+
+  if (!enunciado) {
+    console.error("❌ Enunciado vazio após sanitização:", q);
+    return null;
+  }
+
+  // 🔹 Normalizar resposta correta
+  const resposta_correta = q.resposta_correta
+    ? q.resposta_correta.trim().charAt(0).toUpperCase()
+    : null;
+
+  // 🔹 Sanitizar explicação
+  let explicacao = q.explicacao
+    ? String(q.explicacao).replace(/^EXPLICAÇÃO[:\-]?\s*/i, "").trim()
+    : "";
+
+  // Inserir questão
+  const [r] = await pool.execute(
+    `INSERT INTO questoes 
+       (materia_id, topico_id, subtopico_id, conteudo_id, enunciado, alternativa_correta, explicacao) 
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [
+      conteudo.materia_id,
+      conteudo.topico_id,
+      conteudo.subtopico_id,
+      conteudo.id,
+      enunciado,
+      resposta_correta,
+      explicacao,
+    ]
+  );
+  const questaoId = r.insertId;
+
+  // Inserir alternativas
+  for (const alt of q.alternativas) {
+    if (!alt) continue;
+
+    const letra = alt.trim().charAt(0).toUpperCase();
+    const texto = alt.replace(/^[A-E]\)\s*/i, "").trim();
+
+    if (!texto) continue;
+
+    await pool.execute(
+      "INSERT INTO alternativas (questao_id, letra, texto) VALUES (?, ?, ?)",
+      [questaoId, letra, texto]
+    );
+  }
+
+  return {
+    id: questaoId,
+    enunciado,
+    gabarito: resposta_correta,
+    explicacao,
+  };
+}
+
+/**
+ * Rota HTTP → gerar exatamente 10 questões de uma vez
+ */
+async function generate(req, res) {
   try {
+    const { conteudo_id } = req.body;
+
     // Buscar contexto do conteúdo
     const [[conteudo]] = await pool.execute(
       `SELECT c.id, c.titulo, c.texto, c.texto_html,
@@ -22,147 +95,44 @@ async function generateOne({ conteudo_id, dificuldade = "medio" }) {
       [conteudo_id]
     );
 
-    if (!conteudo) {
-      console.error("❌ Conteúdo não encontrado:", conteudo_id);
-      return null;
-    }
+    if (!conteudo) return error(res, "Conteúdo não encontrado");
 
-    // IA retorna questão em JSON (pode vir com ```json ... ``` delimiters)
-    let iaText;
-    try {
-      iaText = await gerarQuestoesComContexto({
-        materia: conteudo.materia,
-        topico: conteudo.topico,
-        subtopico: conteudo.subtopico,
-        conteudo,
-        quantidade: 1,
-        dificuldade,
-      });
-    } catch (err) {
-      console.error("⚠️ Falha na chamada da IA:", err.message);
-      return null;
-    }
+    // 🔹 Chamar IA apenas uma vez pedindo 10
+    let iaText = await gerarQuestoesComContexto({
+      materia: conteudo.materia,
+      topico: conteudo.topico,
+      subtopico: conteudo.subtopico,
+      conteudo,
+    });
 
-    if (!iaText) {
-      console.error("⚠️ IA não retornou resposta");
-      return null;
-    }
+    if (!iaText) return error(res, "IA não retornou questões");
 
-    // Limpar blocos de markdown
-    iaText = iaText.trim().replace(/```json/g, "").replace(/```/g, "").trim();
+    // 🔹 Limpar blocos de markdown
+    iaText = iaText.trim().replace(/```json/g, "").replace(/```/g, "");
 
-    // Pegar apenas o primeiro array JSON válido
+    // 🔹 Extrair o array JSON
     const match = iaText.match(/\[[\s\S]*\]/);
-    if (!match) {
-      console.error("❌ Resposta IA inesperada:", iaText);
-      return null;
-    }
+    if (!match) return error(res, "Resposta IA inesperada");
 
     let questoesJson;
     try {
       questoesJson = JSON.parse(match[0]);
     } catch (err) {
-      console.error("❌ Erro ao fazer parse do JSON da IA:", iaText);
-      return null;
+      console.error("❌ Erro parseando JSON IA:", err.message, iaText);
+      return error(res, "Erro parseando JSON da IA");
     }
 
-    const q = Array.isArray(questoesJson) ? questoesJson[0] : questoesJson;
-
-    if (!q?.pergunta || !q?.alternativas || !q?.resposta_correta) {
-      console.error("❌ Questão gerada está incompleta:", q);
-      return null;
-    }
-
-    // 🔹 Sanitizar enunciado
-    let enunciado = String(q.pergunta)
-      .replace(/^PERGUNTA[:\-]?\s*/i, "")
-      .replace(/RESPOSTA\s+CORRETA.*/i, "")
-      .replace(/EXPLICAÇÃO.*/i, "")
-      .trim();
-
-    if (!enunciado) {
-      console.error("❌ Enunciado vazio após sanitização:", q);
-      return null;
-    }
-
-    // 🔹 Normalizar resposta correta
-    const resposta_correta = q.resposta_correta
-      ? q.resposta_correta.trim().charAt(0).toUpperCase()
-      : null;
-
-    // 🔹 Sanitizar explicação
-    let explicacao = q.explicacao
-      ? String(q.explicacao).replace(/^EXPLICAÇÃO[:\-]?\s*/i, "").trim()
-      : "";
-
-    // Salvar questão no banco
-    const [r] = await pool.execute(
-      `INSERT INTO questoes 
-         (materia_id, topico_id, subtopico_id, conteudo_id, enunciado, alternativa_correta, explicacao) 
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [
-        conteudo.materia_id,
-        conteudo.topico_id,
-        conteudo.subtopico_id,
-        conteudo.id,
-        enunciado,
-        resposta_correta,
-        explicacao,
-      ]
-    );
-    const questaoId = r.insertId;
-
-    // 🔹 Salvar alternativas (limpando lixo)
-    for (const alt of q.alternativas) {
-      if (!alt) continue;
-
-      const letra = alt.trim().charAt(0).toUpperCase(); // "A", "B", ...
-      let texto = alt.replace(/^[A-E]\)\s*/i, "").trim();
-
-      // Ignorar linhas que contenham gabarito/explicação
-      if (/RESPOSTA\s+CORRETA/i.test(texto) || /EXPLICAÇÃO/i.test(texto)) {
-        continue;
-      }
-
-      if (!texto) continue;
-
-      await pool.execute(
-        "INSERT INTO alternativas (questao_id, letra, texto) VALUES (?, ?, ?)",
-        [questaoId, letra, texto]
-      );
-    }
-
-    return {
-      id: questaoId,
-      enunciado,
-      gabarito: resposta_correta,
-      explicacao,
-    };
-  } catch (err) {
-    console.error("❌ Erro inesperado em questoesController.generateOne:", err);
-    return null; // garante fallback em qualquer erro
-  }
-}
-
-/**
- * Rota HTTP → gerar exatamente 10 questões
- */
-async function generate(req, res) {
-  try {
-    const { conteudo_id, dificuldade = "medio" } = req.body;
+    // 🔹 Salvar todas as questões
     const questoes = [];
-
-    // Sempre tentar gerar 10
-    for (let i = 0; i < 10; i++) {
-      const q = await generateOne({ conteudo_id, dificuldade });
-      if (!q) break;
-      questoes.push(q);
+    for (const q of questoesJson) {
+      const salva = await salvarQuestao(conteudo, q);
+      if (salva) questoes.push(salva);
     }
 
     if (questoes.length < 10) {
       return error(
         res,
-        `Não foi possível gerar 10 questões (geradas apenas ${questoes.length}).`
+        `Não foi possível gerar 10 questões (foram salvas apenas ${questoes.length}).`
       );
     }
 
@@ -173,4 +143,4 @@ async function generate(req, res) {
   }
 }
 
-module.exports = { generate, generateOne };
+module.exports = { generate };

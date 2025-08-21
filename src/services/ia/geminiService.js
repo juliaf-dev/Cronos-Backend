@@ -188,7 +188,8 @@ Competências Específicas de Ciências Humanas (Ensino Médio):
 
 // ---------- Conteúdo didático ----------
 async function gerarConteudoHTML({ materia, topico, subtopico }) {
-  const model = 'gemini-1.5-flash';
+  const model = "gemini-1.5-flash";
+
   const prompt = `Gere um resumo didático em HTML estruturado (com <h2>, <p>, <ul>, <li>) 
 para auxiliar no estudo de ENEM, vestibulares e concursos.
 
@@ -201,19 +202,32 @@ Use a base pedagógica abaixo apenas como referência conceitual (NÃO inclua di
 ${basePedagogica}
 
 ⚠️ Regras obrigatórias:
-- O conteúdo deve ser didático, claro e conciso,
-- Estruture o texto com títulos, parágrafos,
-- Não coloque titulo geral no texto,
+- O conteúdo deve ser didático, claro e conciso.
+- Estruture o texto com subtítulos (<h2>, <h3> se necessário), parágrafos e listas.
+- ❌ Nunca coloque título geral no texto (nem <h1>, nem o subtópico como título inicial).
+- ✅ O texto deve começar direto com <h2> ou <p>.
 `;
+
   const resposta = await geminiGenerate(model, [
-    { role: 'user', parts: [{ text: prompt }] }
+    { role: "user", parts: [{ text: prompt }] }
   ]);
 
-  return typeof resposta === "string" ? resposta : String(resposta);
+  let conteudo = typeof resposta === "string" ? resposta : String(resposta);
+
+  // 🔹 Sanitização: remove blocos markdown, títulos indesejados e espaços extras
+  conteudo = conteudo
+    .replace(/```html|```/gi, "")   // remove delimitadores markdown
+    .replace(/<h1[^>]*>.*?<\/h1>/gi, "") // remove qualquer <h1>
+    .trim();
+
+  return conteudo;
 }
 
+
+const gerarQuestoes = gerarQuestoesComContexto;
+
 // ---------- Questões estilo ENEM (formato flashcard) ----------
-async function gerarQuestoesComContexto({ materia, topico, subtopico, conteudo, quantidade = 5 }) {
+async function gerarQuestoesComContexto({ materia, topico, subtopico, conteudo }) {
   const model = "gemini-1.5-flash";
 
   const stripHTML = (html) =>
@@ -223,30 +237,38 @@ async function gerarQuestoesComContexto({ materia, topico, subtopico, conteudo, 
 
   const conteudoBase = stripHTML(conteudo);
 
-  const prompt = `Crie ${quantidade} questões de múltipla escolha pensando no enem,
-no formato de flashcards.  
+  const prompt = `Crie exatamente 10 questões no estilo ENEM para uso em FLASHCARDS.  
+Cada questão deve ser independente (o enunciado deve se sustentar sozinho, sem depender das alternativas).  
 
 ⚠️ Regras obrigatórias:
-- Alternativas devem sempre estar em ordem alfabética (A até E).
-- A alternativa com a resposta correta deve variar entre as questões.
-- O JSON deve ser válido e utilizável diretamente.
-- edite ao maximo repetir alternativas corretas em sequência, escolha sempre uma aleatoria entre A, B, C, D, e E
-- Nunca faça perguntas que precisem das alternativas no enunciado, pq as alternativas só aparecem depois que o user diz saber a resposta.
+- As alternativas devem SEMPRE estar em ordem alfabética: A), B), C), D), E).
+- A alternativa correta deve variar entre as questões de forma aleatória (distribuir entre A–E).
+- Evite ao máximo repetir a mesma letra como correta em sequência.
+- O JSON deve ser válido, parseável e utilizável diretamente no backend.
+- Nunca inclua a resposta dentro do enunciado.
+- O enunciado deve ser curto, objetivo e em formato de flashcard, ideal para pergunta/resposta rápida.
+- A explicação deve ser clara, curta e didática.
 
 Formato esperado:
 [
   {
-    "pergunta": "Enunciado da questão",
-    "alternativas": ["A) ...", "B) ...", "C) ...", "D) ...", "E) ..."],
-    "resposta_correta": "A",
+    "pergunta": "Enunciado da questão (flashcard)",
+    "alternativas": [
+      "A) ...",
+      "B) ...",
+      "C) ...",
+      "D) ...",
+      "E) ..."
+    ],
+    "resposta_correta": "C",
     "explicacao": "Explicação curta e didática"
   }
 ]
 
-📖 Texto de referência:
+📖 Texto de referência (conteúdo-base do flashcard):
 "${conteudoBase}"
 
-Use a base pedagógica abaixo apenas como referência conceitual (NÃO inclua diretamente no texto final do aluno):
+Base pedagógica (NÃO incluir literalmente no texto, apenas como guia):
 ${basePedagogica}`;
 
   const resposta = await geminiGenerate(model, [
@@ -255,7 +277,7 @@ ${basePedagogica}`;
 
   return typeof resposta === "string" ? resposta : String(resposta);
 }
-const gerarQuestoes = gerarQuestoesComContexto;
+
 
 // ---------- Assistente/chat ----------
 async function chatAssistente({ contexto, mensagem }) {
