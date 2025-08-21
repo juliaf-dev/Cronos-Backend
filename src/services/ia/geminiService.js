@@ -1,5 +1,5 @@
 // src/services/ia/geminiService.js
-const { GEMINI_API_KEY } = require('../../config/env');
+const env = require('../../config/env');
 
 // Fallback para fetch em ambientes Node
 if (typeof globalThis.fetch !== 'function') {
@@ -9,69 +9,81 @@ if (typeof globalThis.fetch !== 'function') {
 
 const BASE = 'https://generativelanguage.googleapis.com/v1beta';
 
-// Contador local de requisições (zera quando o server reinicia)
+// Junta todas as chaves que existem no env
+const GEMINI_KEYS = [
+  env.REACT_APP_GEMINI_API_KEY1,
+  env.REACT_APP_GEMINI_API_KEY2,
+  env.REACT_APP_GEMINI_API_KEY3,
+  env.REACT_APP_GEMINI_API_KEY4,
+].filter(Boolean);
+
+if (GEMINI_KEYS.length === 0) {
+  throw new Error('❌ Nenhuma chave Gemini encontrada no .env');
+}
+
+// Contadores locais
 let requestCount = 0;
+let currentKeyIndex = 0;
 
 // ---------- Função base ----------
 async function geminiGenerate(model, contents) {
-  if (!GEMINI_API_KEY) {
-    throw new Error('GEMINI_API_KEY ausente no .env');
-  }
-
   requestCount++;
-  console.log(`📡 [Gemini] Chamada nº ${requestCount}`);
+  console.log(`📡 [Gemini] Chamada nº ${requestCount} (tentando chave #${currentKeyIndex + 1})`);
 
-  const url = `${BASE}/models/${model}:generateContent?key=${encodeURIComponent(
-    GEMINI_API_KEY
-  )}`;
+  // tenta todas as chaves em fallback
+  for (let i = 0; i < GEMINI_KEYS.length; i++) {
+    const keyIndex = (currentKeyIndex + i) % GEMINI_KEYS.length;
+    const key = GEMINI_KEYS[keyIndex];
 
-  let resp;
-  try {
-    console.log("🚀 Enviando requisição para Gemini API...");
-    resp = await globalThis.fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents }),
-    });
-  } catch (err) {
-    console.error('❌ Erro de conexão com Gemini API:', err);
-    return "⚠️ Falha de conexão com Gemini API.";
-  }
+    const url = `${BASE}/models/${model}:generateContent?key=${encodeURIComponent(key)}`;
 
-  if (!resp.ok) {
-    const txt = await resp.text().catch(() => '');
-    console.error(`❌ Gemini erro ${resp.status}: ${txt}`);
+    try {
+      console.log(`🚀 Enviando requisição com chave #${keyIndex + 1}...`);
+      const resp = await globalThis.fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents }),
+      });
 
-    if (resp.status === 429) {
-      return "⚠️ Limite diário de requisições à Gemini API foi atingido. Tente novamente amanhã ou configure uma chave paga.";
+      if (!resp.ok) {
+        const txt = await resp.text().catch(() => '');
+        console.error(`❌ Gemini erro ${resp.status} com chave #${keyIndex + 1}: ${txt}`);
+
+        // se foi 429 (limite), tenta próxima chave
+        if (resp.status === 429) {
+          console.warn(`⚠️ Chave #${keyIndex + 1} atingiu limite → tentando próxima...`);
+          continue;
+        }
+
+        return `⚠️ Erro na Gemini API (status ${resp.status}).`;
+      }
+
+      const json = await resp.json();
+      console.log("📩 Gemini JSON bruto:", JSON.stringify(json, null, 2));
+
+      const text =
+        json?.candidates?.[0]?.content?.parts
+          ?.map((p) => p.text)
+          .filter(Boolean)
+          .join(' ')
+          .trim() || '';
+
+      if (!text) {
+        console.warn('⚠️ Gemini retornou vazio', JSON.stringify(json, null, 2));
+        return "⚠️ Gemini não retornou conteúdo.";
+      }
+
+      // se funcionou → atualiza currentKeyIndex para próxima chamada
+      currentKeyIndex = keyIndex;
+      return text;
+
+    } catch (err) {
+      console.error(`❌ Erro de conexão com chave #${keyIndex + 1}:`, err);
+      continue; // tenta próxima chave
     }
-
-    return `⚠️ Erro na Gemini API (status ${resp.status}).`;
   }
 
-  let json;
-  try {
-    json = await resp.json();
-  } catch (err) {
-    console.error('❌ Erro ao parsear JSON da Gemini API:', err);
-    return "⚠️ Resposta inválida da Gemini API.";
-  }
-
-  console.log("📩 Gemini JSON bruto:", JSON.stringify(json, null, 2));
-
-  const text =
-    json?.candidates?.[0]?.content?.parts
-      ?.map((p) => p.text)
-      .filter(Boolean)
-      .join(' ')
-      .trim() || '';
-
-  if (!text) {
-    console.warn('⚠️ Gemini retornou vazio', JSON.stringify(json, null, 2));
-    return "⚠️ Gemini não retornou conteúdo.";
-  }
-
-  return text;
+  return "⚠️ Todas as chaves da Gemini API falharam (limite ou erro de conexão).";
 }
 
 // ---------- Bloco pedagógico fixo ----------
