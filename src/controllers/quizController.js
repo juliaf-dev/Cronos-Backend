@@ -2,13 +2,40 @@
 const pool = require("../config/db");
 const { gerarQuestoesComContexto } = require("../services/ia/geminiService");
 
-// ----------------------
-// Util: carregar alternativas de várias questões
-// ----------------------
+/* ----------------------
+   Utils
+----------------------- */
+
+// Limpa resposta da Gemini (remove ```json ... ```)
+function limparJsonGemini(raw) {
+  if (!raw) return null;
+  const match = raw.match(/```json([\s\S]*?)```/i) || raw.match(/```([\s\S]*?)```/i);
+  return (match ? match[1] : raw).trim();
+}
+
+// Normaliza alternativas (aceita "A) ..." ou { A: "..." })
+function normalizarAlternativas(arr) {
+  if (!Array.isArray(arr)) return [];
+  return arr.map((alt, idx) => {
+    if (typeof alt === "string") {
+      const m = alt.match(/^\s*([A-Ea-e])[)\.\-–—:]?\s*(.*)$/);
+      return {
+        letra: m ? m[1].toUpperCase() : String.fromCharCode(65 + idx),
+        texto: m ? m[2] : alt,
+      };
+    }
+    if (alt && typeof alt === "object") {
+      const key = Object.keys(alt)[0];
+      return { letra: key.toUpperCase(), texto: alt[key] };
+    }
+    return { letra: String.fromCharCode(65 + idx), texto: String(alt) };
+  });
+}
+
+// Carrega alternativas de várias questões
 async function carregarAlternativasMap(questaoIds) {
   const altMap = new Map();
   if (!questaoIds.length) return altMap;
-
   const [alts] = await pool.query(
     `SELECT id, questao_id, letra, texto
        FROM alternativas
@@ -16,7 +43,6 @@ async function carregarAlternativasMap(questaoIds) {
    ORDER BY letra ASC`,
     [questaoIds]
   );
-
   for (const a of alts) {
     if (!altMap.has(a.questao_id)) altMap.set(a.questao_id, []);
     altMap.get(a.questao_id).push({
@@ -28,25 +54,19 @@ async function carregarAlternativasMap(questaoIds) {
   return altMap;
 }
 
-// ----------------------
-// POST /quiz/sessoes
-// ----------------------
+/* ----------------------
+   POST /quiz/sessoes
+----------------------- */
 async function criarSessao(req, res) {
   try {
     const usuario_id = req.user?.id || req.body.usuario_id;
     const { conteudo_id, materia, topico, subtopico, conteudo } = req.body;
 
     if (!usuario_id) {
-      return res.status(401).json({
-        ok: false,
-        message: "Usuário não autenticado (usuario_id ausente).",
-      });
+      return res.status(401).json({ ok: false, message: "Usuário não autenticado" });
     }
     if (!conteudo_id) {
-      return res.status(400).json({
-        ok: false,
-        message: "conteudo_id é obrigatório",
-      });
+      return res.status(400).json({ ok: false, message: "conteudo_id é obrigatório" });
     }
 
     let quizId, questoes, altMap, materia_id;
@@ -69,10 +89,9 @@ async function criarSessao(req, res) {
        ORDER BY qq.id ASC`,
         [quizId]
       );
-
-      altMap = await carregarAlternativasMap(questoes.map((q) => q.id));
+      altMap = await carregarAlternativasMap(questoes.map(q => q.id));
     } else {
-      // Buscar questões já existentes do banco
+      // Buscar questões do banco
       let [questoesSelecionadas] = await pool.query(
         `SELECT q.id, q.enunciado, q.materia_id
            FROM questoes q
@@ -82,26 +101,22 @@ async function criarSessao(req, res) {
         [conteudo_id]
       );
 
-      let altTemp = await carregarAlternativasMap(
-        questoesSelecionadas.map((q) => q.id)
-      );
+      let altTemp = await carregarAlternativasMap(questoesSelecionadas.map(q => q.id));
       questoesSelecionadas = questoesSelecionadas.filter(
-        (q) => altTemp.has(q.id) && altTemp.get(q.id).length === 5
+        q => altTemp.has(q.id) && altTemp.get(q.id).length === 5
       );
 
       // Se não houver 10, gerar via IA
       if (questoesSelecionadas.length < 10) {
         console.log("⚡ Gerando questões via Gemini...");
-        const json = await gerarQuestoesComContexto({ materia, topico, subtopico, conteudo });
+        const raw = await gerarQuestoesComContexto({ materia, topico, subtopico, conteudo });
+        const cleaned = limparJsonGemini(raw);
         let novas;
         try {
-          novas = JSON.parse(json);
+          novas = JSON.parse(cleaned);
         } catch (err) {
-          return res.status(500).json({
-            ok: false,
-            message: "Falha ao interpretar resposta da Gemini",
-            error: err.message,
-          });
+          console.error("❌ JSON inválido da Gemini:", cleaned);
+          return res.status(500).json({ ok: false, message: "Falha ao interpretar resposta da Gemini" });
         }
 
         for (const q of novas) {
@@ -112,13 +127,12 @@ async function criarSessao(req, res) {
           );
           const questaoId = ins.insertId;
 
-          for (const alt of q.alternativas) {
-            const letra = alt[0];
-            const texto = alt.substring(3).trim();
+          const alternativas = normalizarAlternativas(q.alternativas);
+          for (const alt of alternativas) {
             await pool.execute(
               `INSERT INTO alternativas (questao_id, letra, texto)
                VALUES (?, ?, ?)`,
-              [questaoId, letra, texto]
+              [questaoId, alt.letra, alt.texto]
             );
           }
 
@@ -131,14 +145,11 @@ async function criarSessao(req, res) {
       }
 
       if (questoesSelecionadas.length < 10) {
-        return res.status(400).json({
-          ok: false,
-          message: "Não foi possível gerar quiz completo (mínimo 10 questões necessárias).",
-        });
+        return res.status(400).json({ ok: false, message: "Não foi possível gerar quiz completo" });
       }
 
       questoes = questoesSelecionadas.slice(0, 10);
-      altMap = await carregarAlternativasMap(questoes.map((q) => q.id));
+      altMap = await carregarAlternativasMap(questoes.map(q => q.id));
       materia_id = questoes[0]?.materia_id || null;
 
       const [quizIns] = await pool.execute(
@@ -156,7 +167,7 @@ async function criarSessao(req, res) {
       }
     }
 
-    // Criar registros de resultados para usuário
+    // Criar registros de resultados
     for (const q of questoes) {
       await pool.execute(
         `INSERT IGNORE INTO quiz_resultados (usuario_id, quiz_id, questao_id, correta, respondido_em)
@@ -165,54 +176,41 @@ async function criarSessao(req, res) {
       );
     }
 
+    // Montar retorno
     const questoesComAlternativas = await Promise.all(
-      questoes.map(async (q) => {
+      questoes.map(async q => {
         const [[row]] = await pool.execute(
-          `SELECT enunciado, alternativa_correta, explicacao
-             FROM questoes
-            WHERE id = ?
-            LIMIT 1`,
+          `SELECT enunciado, alternativa_correta, explicacao FROM questoes WHERE id = ? LIMIT 1`,
           [q.id]
         );
-
         return {
           id: q.id,
           enunciado: row?.enunciado || q.enunciado,
           materia_id: q.materia_id,
           alternativa_correta: row?.alternativa_correta,
           explicacao: row?.explicacao,
-          alternativas: (altMap.get(q.id) || []),
+          alternativas: altMap.get(q.id) || [],
         };
       })
     );
 
-    return res.json({
-      ok: true,
-      quiz: { quiz_id: quizId, questoes: questoesComAlternativas },
-    });
+    return res.json({ ok: true, quiz: { quiz_id: quizId, questoes: questoesComAlternativas } });
   } catch (err) {
     console.error("❌ Erro ao criar sessão de quiz:", err);
-    return res.status(500).json({
-      ok: false,
-      message: "Erro interno ao criar quiz",
-      error: err.message,
-    });
+    return res.status(500).json({ ok: false, message: "Erro interno ao criar quiz", error: err.message });
   }
 }
 
-// ----------------------
-// POST /quiz/responder
-// ----------------------
+/* ----------------------
+   POST /quiz/responder
+----------------------- */
 async function responder(req, res) {
   try {
     const usuario_id = req.user?.id || req.body.usuario_id;
     const { quiz_id, questao_id, alternativa_id } = req.body;
 
     if (!usuario_id || !quiz_id || !questao_id || !alternativa_id) {
-      return res.status(400).json({
-        ok: false,
-        message: "usuario_id, quiz_id, questao_id e alternativa_id são obrigatórios",
-      });
+      return res.status(400).json({ ok: false, message: "usuario_id, quiz_id, questao_id e alternativa_id são obrigatórios" });
     }
 
     const [vr] = await pool.execute(
@@ -252,17 +250,13 @@ async function responder(req, res) {
     });
   } catch (err) {
     console.error("❌ Erro ao responder questão:", err);
-    return res.status(500).json({
-      ok: false,
-      message: "Erro interno ao responder",
-      error: err.message,
-    });
+    return res.status(500).json({ ok: false, message: "Erro interno ao responder", error: err.message });
   }
 }
 
-// ----------------------
-// POST /quiz/finalizar
-// ----------------------
+/* ----------------------
+   POST /quiz/finalizar
+----------------------- */
 async function finalizar(req, res) {
   try {
     const usuario_id = req.user?.id || req.body.usuario_id;
@@ -280,16 +274,10 @@ async function finalizar(req, res) {
     );
 
     if (tot.total !== 10) {
-      return res.status(400).json({
-        ok: false,
-        message: `Quiz inválido: esperado 10, encontrado ${tot.total}`,
-      });
+      return res.status(400).json({ ok: false, message: `Quiz inválido: esperado 10, encontrado ${tot.total}` });
     }
     if (tot.pendentes > 0) {
-      return res.status(400).json({
-        ok: false,
-        message: `Ainda faltam ${tot.pendentes} questões para responder`,
-      });
+      return res.status(400).json({ ok: false, message: `Ainda faltam ${tot.pendentes} questões para responder` });
     }
 
     const [[agg]] = await pool.execute(
@@ -299,36 +287,23 @@ async function finalizar(req, res) {
       [usuario_id, quiz_id]
     );
 
-    return res.json({
-      ok: true,
-      quiz_id,
-      total: tot.total,
-      acertos: agg.acertos || 0,
-      erros: agg.erros || 0,
-    });
+    return res.json({ ok: true, quiz_id, total: tot.total, acertos: agg.acertos || 0, erros: agg.erros || 0 });
   } catch (err) {
     console.error("❌ Erro ao finalizar quiz:", err);
-    return res.status(500).json({
-      ok: false,
-      message: "Erro interno ao finalizar quiz",
-      error: err.message,
-    });
+    return res.status(500).json({ ok: false, message: "Erro interno ao finalizar quiz", error: err.message });
   }
 }
 
-// ----------------------
-// GET /quiz/:quiz_id/resumo
-// ----------------------
+/* ----------------------
+   GET /quiz/:quiz_id/resumo
+----------------------- */
 async function resumo(req, res) {
   try {
     const usuario_id = req.user?.id || req.query.usuario_id;
     const { quiz_id } = req.params;
 
     if (!usuario_id) {
-      return res.status(401).json({
-        ok: false,
-        message: "Usuário não autenticado",
-      });
+      return res.status(401).json({ ok: false, message: "Usuário não autenticado" });
     }
 
     const [itens] = await pool.execute(
@@ -346,17 +321,13 @@ async function resumo(req, res) {
     return res.json({ ok: true, quiz_id, itens });
   } catch (err) {
     console.error("❌ Erro ao carregar resumo:", err);
-    return res.status(500).json({
-      ok: false,
-      message: "Erro interno ao carregar resumo",
-      error: err.message,
-    });
+    return res.status(500).json({ ok: false, message: "Erro interno ao carregar resumo", error: err.message });
   }
 }
 
-// ----------------------
-// GET /quiz/historico/:usuario_id
-// ----------------------
+/* ----------------------
+   GET /quiz/historico/:usuario_id
+----------------------- */
 async function historico(req, res) {
   try {
     const { usuario_id } = req.params;
@@ -380,11 +351,7 @@ async function historico(req, res) {
     return res.json({ ok: true, quizzes: rows });
   } catch (err) {
     console.error("❌ Erro ao carregar histórico:", err);
-    return res.status(500).json({
-      ok: false,
-      message: "Erro interno ao carregar histórico",
-      error: err.message,
-    });
+    return res.status(500).json({ ok: false, message: "Erro interno ao carregar histórico", error: err.message });
   }
 }
 
