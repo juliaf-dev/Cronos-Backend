@@ -22,17 +22,31 @@ async function generateOne({ conteudo_id, dificuldade = "medio" }) {
       [conteudo_id]
     );
 
-    if (!conteudo) throw new Error("Conteúdo não encontrado");
+    if (!conteudo) {
+      console.error("❌ Conteúdo não encontrado:", conteudo_id);
+      return null;
+    }
 
-    // IA retorna questão em JSON (pode vir com ```json ... ```)
-    let iaText = await gerarQuestoesComContexto({
-      materia: conteudo.materia,
-      topico: conteudo.topico,
-      subtopico: conteudo.subtopico,
-      conteudo,
-      quantidade: 1,
-      dificuldade,
-    });
+    // IA retorna questão em JSON (pode vir com ```json ... ``` delimiters)
+    let iaText;
+    try {
+      iaText = await gerarQuestoesComContexto({
+        materia: conteudo.materia,
+        topico: conteudo.topico,
+        subtopico: conteudo.subtopico,
+        conteudo,
+        quantidade: 1,
+        dificuldade,
+      });
+    } catch (err) {
+      console.error("⚠️ Falha na chamada da IA:", err.message);
+      return null;
+    }
+
+    if (!iaText) {
+      console.error("⚠️ IA não retornou resposta");
+      return null;
+    }
 
     // Limpar blocos de markdown
     iaText = iaText.trim().replace(/```json/g, "").replace(/```/g, "").trim();
@@ -41,7 +55,7 @@ async function generateOne({ conteudo_id, dificuldade = "medio" }) {
     const match = iaText.match(/\[[\s\S]*\]/);
     if (!match) {
       console.error("❌ Resposta IA inesperada:", iaText);
-      throw new Error("IA não retornou JSON válido");
+      return null;
     }
 
     let questoesJson;
@@ -49,13 +63,14 @@ async function generateOne({ conteudo_id, dificuldade = "medio" }) {
       questoesJson = JSON.parse(match[0]);
     } catch (err) {
       console.error("❌ Erro ao fazer parse do JSON da IA:", iaText);
-      throw new Error("IA não retornou JSON válido");
+      return null;
     }
 
     const q = Array.isArray(questoesJson) ? questoesJson[0] : questoesJson;
 
     if (!q?.pergunta || !q?.alternativas || !q?.resposta_correta) {
-      throw new Error("Questão gerada está incompleta");
+      console.error("❌ Questão gerada está incompleta:", q);
+      return null;
     }
 
     // Salvar questão no banco
@@ -94,22 +109,31 @@ async function generateOne({ conteudo_id, dificuldade = "medio" }) {
       explicacao: q.explicacao,
     };
   } catch (err) {
-    console.error("❌ Erro em questoesController.generateOne:", err);
-    throw err;
+    console.error("❌ Erro inesperado em questoesController.generateOne:", err);
+    return null; // garante fallback em qualquer erro
   }
 }
 
 /**
- * Rota HTTP → gerar várias questões de uma vez
+ * Rota HTTP → gerar exatamente 10 questões
  */
 async function generate(req, res) {
   try {
-    const { conteudo_id, quantidade = 5, dificuldade = "medio" } = req.body;
+    const { conteudo_id, dificuldade = "medio" } = req.body;
     const questoes = [];
 
-    for (let i = 0; i < quantidade; i++) {
+    // Sempre tentar gerar 10
+    for (let i = 0; i < 10; i++) {
       const q = await generateOne({ conteudo_id, dificuldade });
+      if (!q) break;
       questoes.push(q);
+    }
+
+    if (questoes.length < 10) {
+      return error(
+        res,
+        `Não foi possível gerar 10 questões (geradas apenas ${questoes.length}).`
+      );
     }
 
     return ok(res, { questoes }, 201);
@@ -120,3 +144,4 @@ async function generate(req, res) {
 }
 
 module.exports = { generate, generateOne };
+

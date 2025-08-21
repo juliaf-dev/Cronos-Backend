@@ -33,9 +33,10 @@ async function criarSessao(req, res) {
     const { conteudo_id } = req.body;
 
     if (!usuario_id || !conteudo_id) {
-      return res
-        .status(400)
-        .json({ ok: false, message: "usuario_id e conteudo_id são obrigatórios" });
+      return res.status(400).json({
+        ok: false,
+        message: "usuario_id e conteudo_id são obrigatórios",
+      });
     }
 
     let quizId, questoes, altMap, materia_id;
@@ -71,6 +72,7 @@ async function criarSessao(req, res) {
         [conteudo_id]
       );
 
+      // Apenas questões com alternativas completas
       let altTemp = await carregarAlternativasMap(
         questoesSelecionadas.map((q) => q.id)
       );
@@ -78,12 +80,29 @@ async function criarSessao(req, res) {
         (q) => altTemp.has(q.id) && altTemp.get(q.id).length === 5
       );
 
+      // Completar com IA se faltar
       while (questoesSelecionadas.length < 10) {
-        const nova = await generateOne({ conteudo_id, dificuldade: "medio" });
-        questoesSelecionadas.push({
-          id: nova.id,
-          enunciado: nova.enunciado,
-          materia_id: questoesSelecionadas[0]?.materia_id || nova.materia_id,
+        try {
+          const nova = await generateOne({ conteudo_id, dificuldade: "medio" });
+          if (!nova) break;
+          questoesSelecionadas.push({
+            id: nova.id,
+            enunciado: nova.enunciado,
+            materia_id:
+              questoesSelecionadas[0]?.materia_id || nova.materia_id,
+          });
+        } catch (err) {
+          console.error("⚠️ Falha ao gerar questão via IA:", err.message);
+          break;
+        }
+      }
+
+      // Garante mínimo de 10
+      if (questoesSelecionadas.length < 10) {
+        return res.status(400).json({
+          ok: false,
+          message:
+            "Não foi possível gerar quiz completo (mínimo 10 questões necessárias).",
         });
       }
 
@@ -96,7 +115,6 @@ async function criarSessao(req, res) {
          VALUES (?, ?, 10, 0, 0, NOW())`,
         [conteudo_id, materia_id]
       );
-
       quizId = quizIns.insertId;
 
       for (const q of questoes) {
@@ -107,7 +125,7 @@ async function criarSessao(req, res) {
       }
     }
 
-    // Criar registros de resultados
+    // Criar registros de resultados para usuário
     for (const q of questoes) {
       await pool.execute(
         `INSERT IGNORE INTO quiz_resultados (usuario_id, quiz_id, questao_id, correta, respondido_em)
@@ -116,16 +134,7 @@ async function criarSessao(req, res) {
       );
     }
 
-    // 👉 Checagem extra
-    const [[countCheck]] = await pool.execute(
-      `SELECT COUNT(*) AS total FROM quiz_resultados WHERE usuario_id = ? AND quiz_id = ?`,
-      [usuario_id, quizId]
-    );
-    console.log(
-      `📌 Sessão criada: quiz ${quizId}, usuário ${usuario_id}, total registros = ${countCheck.total}`
-    );
-
-    // 🔥 Agora inclui alternativa_correta
+    // Retornar questões com alternativas
     const questoesComAlternativas = await Promise.all(
       questoes.map(async (q) => {
         const [[corretaRow]] = await pool.execute(
