@@ -253,19 +253,29 @@ async function gerarQuestoesComContexto({ materia, topico, subtopico, conteudo }
 
   const conteudoBase = stripHTML(conteudo);
 
-  const prompt = `Crie exatamente 10 questões no estilo ENEM para uso em FLASHCARDS.  
-Cada questão deve ser independente (o enunciado deve se sustentar sozinho, sem depender das alternativas).  
+  const prompt = `Crie exatamente 10 questões no estilo ENEM para uso em FLASHCARDS, **sempre baseadas exclusivamente no conteúdo abaixo**.  
+Não invente temas fora do texto fornecido.  
 
 ⚠️ Regras obrigatórias:
-- As alternativas devem SEMPRE estar em ordem alfabética: A), B), C), D), E).
-- A alternativa correta deve variar entre as questões de forma aleatória (distribuir entre A–E).
-- Evite ao máximo repetir a mesma letra como correta em sequência.
-- O JSON deve ser válido, parseável e utilizável diretamente no backend.
-- Nunca inclua a resposta dentro do enunciado.
-- O enunciado deve ser curto, objetivo e em formato de flashcard, ideal para pergunta/resposta rápida.
-- A explicação deve ser clara, curta e didática.
+- As questões devem estar relacionadas apenas a:
+  • Matéria: ${materia}  
+  • Tópico: ${topico}  
+  • Subtópico: ${subtopico}  
+- Todas as perguntas devem ser **diretamente baseadas no texto de referência**, nunca em conhecimentos externos.  
+- As alternativas devem SEMPRE estar em ordem alfabética: A), B), C), D), E).  
+- A alternativa correta deve variar entre as questões de forma aleatória (distribuir entre A–E).  
+- Evite ao máximo repetir a mesma letra como correta em sequência.  
+- O JSON deve ser válido, parseável e utilizável diretamente no backend.  
+- Nunca inclua a resposta dentro do enunciado.  
+- O enunciado deve ser curto, objetivo e em formato de flashcard, ideal para pergunta/resposta rápida.  
+- A explicação deve ser clara, curta e didática.  
 
-Formato esperado:
+📖 Texto de referência (conteúdo-base do flashcard):  
+"""  
+${conteudoBase}  
+"""  
+
+Formato esperado (JSON válido):  
 [
   {
     "pergunta": "Enunciado da questão (flashcard)",
@@ -279,13 +289,7 @@ Formato esperado:
     "resposta_correta": "C",
     "explicacao": "Explicação curta e didática"
   }
-]
-
-📖 Texto de referência (conteúdo-base do flashcard):
-"${conteudoBase}"
-
-Base pedagógica (NÃO incluir literalmente no texto, apenas como guia):
-${basePedagogica}`;
+]`;
 
   const resposta = await geminiGenerate(model, [
     { role: "user", parts: [{ text: prompt }] }
@@ -293,6 +297,7 @@ ${basePedagogica}`;
 
   return typeof resposta === "string" ? resposta : String(resposta);
 }
+
 
 
 // ---------- Assistente/chat ----------
