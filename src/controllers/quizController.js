@@ -143,8 +143,25 @@ async function criarSessao(req, res) {
           );
           const questaoId = ins.insertId;
 
-          const alternativas = normalizarAlternativas(q.alternativas);
-          for (const alt of alternativas) {
+          // 🔹 Normaliza, remove duplicadas e garante 5 alternativas únicas
+          let alternativas = normalizarAlternativas(q.alternativas);
+
+          const usadas = new Set();
+          alternativas = alternativas.filter(alt => {
+            if (!alt.letra) return false;
+            if (usadas.has(alt.letra)) return false;
+            usadas.add(alt.letra);
+            return true;
+          });
+
+          const letras = ["A", "B", "C", "D", "E"];
+          for (const l of letras) {
+            if (!alternativas.find(a => a.letra === l)) {
+              alternativas.push({ letra: l, texto: `Opção ${l}` });
+            }
+          }
+
+          for (const alt of alternativas.slice(0, 5)) {
             await pool.execute(
               `INSERT INTO alternativas (questao_id, letra, texto)
                VALUES (?, ?, ?)`,
