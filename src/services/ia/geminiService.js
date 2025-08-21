@@ -190,7 +190,7 @@ Competências Específicas de Ciências Humanas (Ensino Médio):
 async function gerarConteudoHTML({ materia, topico, subtopico }) {
   const model = "gemini-1.5-flash";
 
-  const prompt = `Gere um resumo didático sem titulo inicial, em HTML estruturado (com <h2>, <p>, <ul>, <li>) 
+  const prompt = `Gere um resumo didático NUNCA usando titulo inicial, em HTML estruturado (com <h2>, <p>, <ul>, <li>) 
 para auxiliar no estudo de ENEM, vestibulares e concursos.
 
 Tema:
@@ -199,13 +199,16 @@ Tema:
 - Subtópico: ${subtopico}
 
 Use a base pedagógica abaixo apenas como referência conceitual (NÃO inclua diretamente no texto final do aluno):
-${basePedagogica}
+${basePedagogica}.
+Seja detalhista no conteudo, minimo de 1000 palavras no total.
 
 ⚠️ Regras obrigatórias:
 - O conteúdo deve ser didático, claro e conciso.
 - Estruture o texto com subtítulos (<h2>, <h3> se necessário), parágrafos e listas.
 - ❌ Nunca coloque título geral no texto (nem <h1>, nem o subtópico como título inicial).
 - ✅ O texto deve começar direto com <h2> ou <p>.
+- Faça o texto didático direto, sem introdução ou título geral.
+
 `;
 
   const resposta = await geminiGenerate(model, [
