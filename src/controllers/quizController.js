@@ -22,7 +22,7 @@ async function carregarAlternativasMap(questaoIds) {
     altMap.get(a.questao_id).push({
       id: a.id,
       letra: (a.letra || "").toUpperCase(),
-      texto: a.texto || "",
+      texto: (a.texto || "").trim(),
     });
   }
   return altMap;
@@ -156,11 +156,17 @@ async function criarSessao(req, res) {
 
         return {
           id: q.id,
-          enunciado: (q.enunciado || row?.enunciado || "").trim() || "(Enunciado indisponível)",
+          enunciado:
+            (q.enunciado || row?.enunciado || "").trim() ||
+            "Enunciado indisponível",
           materia_id: q.materia_id,
           alternativa_correta: row?.alternativa_correta || null,
           explicacao: row?.explicacao || null,
-          alternativas: altMap.get(q.id) || [],
+          alternativas: (altMap.get(q.id) || []).map((alt) => ({
+            id: alt.id,
+            letra: alt.letra,
+            texto: alt.texto,
+          })),
         };
       })
     );
@@ -195,13 +201,6 @@ async function responder(req, res) {
       });
     }
 
-    console.log("➡️ Responder:", {
-      usuario_id,
-      quiz_id,
-      questao_id,
-      alternativa_id,
-    });
-
     const [vr] = await pool.execute(
       `SELECT id FROM quiz_resultados WHERE usuario_id = ? AND quiz_id = ? AND questao_id = ? LIMIT 1`,
       [usuario_id, quiz_id, questao_id]
@@ -235,12 +234,6 @@ async function responder(req, res) {
         WHERE usuario_id = ? AND quiz_id = ? AND questao_id = ?`,
       [correta ? 1 : 0, usuario_id, quiz_id, questao_id]
     );
-
-    console.log("✅ Resposta registrada:", {
-      questao_id,
-      correta,
-      letra_correta: row.letra_correta,
-    });
 
     return res.json({
       ok: true,
@@ -390,4 +383,3 @@ async function historico(req, res) {
 }
 
 module.exports = { criarSessao, responder, finalizar, resumo, historico };
-
