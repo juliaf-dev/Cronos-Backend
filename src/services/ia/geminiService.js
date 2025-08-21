@@ -248,14 +248,19 @@ const gerarQuestoes = gerarQuestoesComContexto;
 function extrairPrimeiroJSON(texto) {
   if (!texto) return "[]";
 
-  // Tenta capturar só o primeiro bloco ```json ... ```
-  const match = texto.match(/```json([\s\S]*?)```/);
-  if (match) {
-    return match[1].trim();
+  // Captura bloco entre ```json ... ```
+  let match = texto.match(/```json([\s\S]*?)```/i);
+  if (!match) {
+    // Se não tiver "json", tenta apenas ```
+    match = texto.match(/```([\s\S]*?)```/);
   }
+  const bruto = match ? match[1] : texto;
 
-  // Se não achou delimitador, retorna tudo (pode ser JSON puro)
-  return texto.trim();
+  // Remove possíveis prefixos/sufixos indesejados
+  return bruto
+    .replace(/^[^\[{]+/, "") // remove lixo antes de [ ou {
+    .replace(/[^\]}]+$/, "") // remove lixo depois de ] ou }
+    .trim();
 }
 
 /**
@@ -330,7 +335,8 @@ Crie exatamente 10 questões no estilo ENEM para uso em FLASHCARDS, baseadas em:
   try {
     return JSON.parse(texto); // já retorna array de questões
   } catch (err) {
-    console.error("❌ Erro parseando JSON do Gemini:", err, texto);
+    console.error("❌ Erro parseando JSON do Gemini:", err.message);
+    console.error("👉 Texto recebido:", texto);
     return [];
   }
 }
