@@ -76,7 +76,14 @@ async function generateOne({ conteudo_id, dificuldade = "medio" }) {
     // 🔹 Sanitizar enunciado
     let enunciado = String(q.pergunta)
       .replace(/^PERGUNTA[:\-]?\s*/i, "")
+      .replace(/RESPOSTA\s+CORRETA.*/i, "")
+      .replace(/EXPLICAÇÃO.*/i, "")
       .trim();
+
+    if (!enunciado) {
+      console.error("❌ Enunciado vazio após sanitização:", q);
+      return null;
+    }
 
     // 🔹 Normalizar resposta correta
     const resposta_correta = q.resposta_correta
@@ -108,6 +115,7 @@ async function generateOne({ conteudo_id, dificuldade = "medio" }) {
     // 🔹 Salvar alternativas (limpando lixo)
     for (const alt of q.alternativas) {
       if (!alt) continue;
+
       const letra = alt.trim().charAt(0).toUpperCase(); // "A", "B", ...
       let texto = alt.replace(/^[A-E]\)\s*/i, "").trim();
 
@@ -115,6 +123,8 @@ async function generateOne({ conteudo_id, dificuldade = "medio" }) {
       if (/RESPOSTA\s+CORRETA/i.test(texto) || /EXPLICAÇÃO/i.test(texto)) {
         continue;
       }
+
+      if (!texto) continue;
 
       await pool.execute(
         "INSERT INTO alternativas (questao_id, letra, texto) VALUES (?, ?, ?)",
@@ -125,7 +135,6 @@ async function generateOne({ conteudo_id, dificuldade = "medio" }) {
     return {
       id: questaoId,
       enunciado,
-      alternativas: q.alternativas,
       gabarito: resposta_correta,
       explicacao,
     };
