@@ -240,8 +240,7 @@ Seja detalhista no conteudo, minimo de 1000 palavras no total.
 
 
 
-// src/services/ia/gerarQuestoesComContexto.js
-const { geminiGenerate } = require("./geminiService");
+const gerarQuestoes = gerarQuestoesComContexto;
 
 /**
  * Extrai o primeiro bloco JSON válido de uma resposta do Gemini
