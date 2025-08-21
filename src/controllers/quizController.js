@@ -6,13 +6,31 @@ const { gerarQuestoesComContexto } = require("../services/ia/geminiService");
    Utils
 ----------------------- */
 
-// Limpa resposta da Gemini (remove ```json ... ```)
+// Limpa resposta da Gemini (remove ```json ... ``` e aceita objeto)
 function limparJsonGemini(raw) {
   if (!raw) return null;
-  const match =
-    raw.match(/```json([\s\S]*?)```/i) ||
-    raw.match(/```([\s\S]*?)```/i);
-  return (match ? match[1] : raw).trim();
+
+  // 🔹 Caso já seja objeto (Gemini já retornou JSON parseado)
+  if (typeof raw === "object") {
+    return raw;
+  }
+
+  if (typeof raw === "string") {
+    const match =
+      raw.match(/```json([\s\S]*?)```/i) ||
+      raw.match(/```([\s\S]*?)```/i);
+
+    const cleaned = (match ? match[1] : raw).trim();
+
+    try {
+      return JSON.parse(cleaned);
+    } catch (e) {
+      console.error("❌ Erro ao parsear JSON do Gemini:", e.message);
+      return null;
+    }
+  }
+
+  return null;
 }
 
 // Normaliza alternativas (aceita "A) ..." ou { A: "..." })
@@ -77,7 +95,7 @@ async function criarSessao(req, res) {
 
     let quizId, questoes, altMap, materia_id;
 
-    // 🔹 Verifica se já existe quiz para este conteúdo (compartilhado entre todos usuários)
+    // 🔹 Verifica se já existe quiz para este conteúdo
     const [[quizExistente]] = await pool.execute(
       `SELECT id, materia_id FROM quizzes WHERE conteudo_id = ? LIMIT 1`,
       [conteudo_id]
@@ -97,7 +115,7 @@ async function criarSessao(req, res) {
       );
       altMap = await carregarAlternativasMap(questoes.map((q) => q.id));
     } else {
-      // 🔹 Tenta buscar questões já existentes no banco
+      // 🔹 Busca questões já existentes
       let [questoesSelecionadas] = await pool.query(
         `SELECT q.id, q.enunciado, q.materia_id
            FROM questoes q
@@ -140,12 +158,9 @@ async function criarSessao(req, res) {
           subtopico,
           conteudo,
         });
-        const cleaned = limparJsonGemini(raw);
-        let novas;
-        try {
-          novas = JSON.parse(cleaned);
-        } catch (err) {
-          console.error("❌ JSON inválido da Gemini:", cleaned);
+        const novas = limparJsonGemini(raw);
+
+        if (!novas) {
           return res.status(500).json({
             ok: false,
             message: "Falha ao interpretar resposta da Gemini",
@@ -160,9 +175,8 @@ async function criarSessao(req, res) {
           );
           const questaoId = ins.insertId;
 
-          // 🔹 Normaliza, remove duplicadas e garante 5 alternativas únicas
+          // 🔹 Normaliza, remove duplicadas e garante 5 alternativas
           let alternativas = normalizarAlternativas(q.alternativas);
-
           const usadas = new Set();
           alternativas = alternativas.filter((alt) => {
             if (!alt.letra) return false;
@@ -178,7 +192,6 @@ async function criarSessao(req, res) {
             }
           }
 
-          // 🔹 Usa INSERT IGNORE para evitar erro de chave duplicada
           for (const alt of alternativas.slice(0, 5)) {
             await pool.execute(
               `INSERT IGNORE INTO alternativas (questao_id, letra, texto)
@@ -220,7 +233,7 @@ async function criarSessao(req, res) {
       }
     }
 
-    // 🔹 Criar (se ainda não existir) registros de resultados por usuário
+    // 🔹 Cria resultados por usuário
     for (const q of questoes) {
       await pool.execute(
         `INSERT IGNORE INTO quiz_resultados (usuario_id, quiz_id, questao_id, correta, respondido_em)
@@ -229,7 +242,7 @@ async function criarSessao(req, res) {
       );
     }
 
-    // 🔹 Montar retorno
+    // 🔹 Monta retorno
     const questoesComAlternativas = await Promise.all(
       questoes.map(async (q) => {
         const [[row]] = await pool.execute(
