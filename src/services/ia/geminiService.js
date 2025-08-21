@@ -243,9 +243,12 @@ Seja detalhista no conteudo, minimo de 1000 palavras no total.
 const gerarQuestoes = gerarQuestoesComContexto;
 
 // ---------- Questões estilo ENEM (formato flashcard) ----------
+// src/services/ia/geminiService.js (ou equivalente)
+
 async function gerarQuestoesComContexto({ materia, topico, subtopico, conteudo }) {
   const model = "gemini-1.5-flash";
 
+  // Remove tags HTML do conteúdo
   const stripHTML = (html) =>
     (!html || typeof html !== "string")
       ? ""
@@ -253,32 +256,34 @@ async function gerarQuestoesComContexto({ materia, topico, subtopico, conteudo }
 
   const conteudoBase = stripHTML(conteudo);
 
-  const prompt = `Crie exatamente 10 questões no estilo ENEM para uso em FLASHCARDS, **sempre baseadas exclusivamente no conteúdo abaixo**.  
-Não invente temas fora do texto fornecido.  
+  // Prompt ajustado para FORÇAR relação direta com o conteúdo recebido
+  const prompt = `Você é um gerador de questões pedagógicas. 
+Use SOMENTE o conteúdo fornecido como base. 
+NÃO invente informações externas. 
+
+Crie exatamente 10 questões no estilo ENEM para uso em FLASHCARDS, baseadas em:
+
+- Matéria: ${materia}
+- Tópico: ${topico}
+- Subtópico: ${subtopico}
+
+📖 Texto de referência (use apenas este conteúdo como fonte):
+"${conteudoBase}"
 
 ⚠️ Regras obrigatórias:
-- As questões devem estar relacionadas apenas a:
-  • Matéria: ${materia}  
-  • Tópico: ${topico}  
-  • Subtópico: ${subtopico}  
-- Todas as perguntas devem ser **diretamente baseadas no texto de referência**, nunca em conhecimentos externos.  
-- As alternativas devem SEMPRE estar em ordem alfabética: A), B), C), D), E).  
-- A alternativa correta deve variar entre as questões de forma aleatória (distribuir entre A–E).  
-- Evite ao máximo repetir a mesma letra como correta em sequência.  
-- O JSON deve ser válido, parseável e utilizável diretamente no backend.  
-- Nunca inclua a resposta dentro do enunciado.  
-- O enunciado deve ser curto, objetivo e em formato de flashcard, ideal para pergunta/resposta rápida.  
-- A explicação deve ser clara, curta e didática.  
+- Cada questão deve se basear exclusivamente no texto de referência.
+- Cada enunciado deve ser independente (não dependa das alternativas para ser entendido).
+- As alternativas devem estar em ordem alfabética: A), B), C), D), E).
+- A alternativa correta deve variar entre A–E (não repita a mesma letra em sequência).
+- O JSON deve ser válido, parseável e pronto para uso no backend.
+- Nunca inclua a resposta dentro do enunciado.
+- A explicação deve ser curta, clara e didática.
+- Pergunta em formato objetivo, ideal para flashcards.
 
-📖 Texto de referência (conteúdo-base do flashcard):  
-"""  
-${conteudoBase}  
-"""  
-
-Formato esperado (JSON válido):  
+Formato final esperado (JSON):
 [
   {
-    "pergunta": "Enunciado da questão (flashcard)",
+    "pergunta": "Enunciado da questão",
     "alternativas": [
       "A) ...",
       "B) ...",
@@ -297,6 +302,8 @@ Formato esperado (JSON válido):
 
   return typeof resposta === "string" ? resposta : String(resposta);
 }
+
+module.exports = { gerarQuestoesComContexto };
 
 
 
